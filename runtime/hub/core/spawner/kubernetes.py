@@ -439,7 +439,7 @@ class RemoteLabKubeSpawner(KubeSpawner):
                 return vm["mountPath"]
         return "/home/jovyan"
 
-    def _create_git_token_secret(self, access_token: str) -> str:
+    async def _create_git_token_secret(self, access_token: str) -> str:
         """Create a K8s Secret containing the git access token.
 
         The Secret is bound to the user pod via ownerReferences so it
@@ -447,7 +447,8 @@ class RemoteLabKubeSpawner(KubeSpawner):
         """
         import secrets as _secrets
 
-        from kubernetes import client as k8s_client
+        from kubernetes_asyncio import client as k8s_client
+        from kubernetes_asyncio.client import ApiClient
 
         safe_username = re.sub(r"[^a-z0-9-]", "-", self.user.name.lower())[:40]
         suffix = _secrets.token_hex(3)
@@ -468,26 +469,33 @@ class RemoteLabKubeSpawner(KubeSpawner):
             type="Opaque",
         )
 
-        self.api.create_namespaced_secret(self.namespace, secret)
+        async with ApiClient() as api_client:
+            v1 = k8s_client.CoreV1Api(api_client)
+            await v1.create_namespaced_secret(self.namespace, secret)
         self.log.info(f"Created git token secret {secret_name} for user {self.user.name}")
         return secret_name
 
-    def _cleanup_git_token_secrets(self) -> None:
+    async def _cleanup_git_token_secrets(self) -> None:
         """Clean up any leftover git token secrets for this user."""
         try:
+            from kubernetes_asyncio import client as k8s_client
+            from kubernetes_asyncio.client import ApiClient
+
             safe_username = re.sub(r"[^a-z0-9-]", "-", self.user.name.lower())[:40]
             label_selector = f"component=git-token,hub.jupyter.org/username={safe_username}"
-            secrets = self.api.list_namespaced_secret(self.namespace, label_selector=label_selector)
-            for secret in secrets.items:
-                try:
-                    self.api.delete_namespaced_secret(secret.metadata.name, self.namespace)
-                    self.log.info(f"Cleaned up git token secret {secret.metadata.name}")
-                except Exception:
-                    pass
+            async with ApiClient() as api_client:
+                v1 = k8s_client.CoreV1Api(api_client)
+                secrets = await v1.list_namespaced_secret(self.namespace, label_selector=label_selector)
+                for secret in secrets.items:
+                    try:
+                        await v1.delete_namespaced_secret(secret.metadata.name, self.namespace)
+                        self.log.info(f"Cleaned up git token secret {secret.metadata.name}")
+                    except Exception:
+                        pass
         except Exception as e:
             self.log.warning(f"Failed to cleanup git token secrets: {e}")
 
-    def _build_git_init_container(
+    async def _build_git_init_container(
         self,
         repo_url: str,
         repo_name: str,
@@ -522,7 +530,7 @@ class RemoteLabKubeSpawner(KubeSpawner):
             env.append({"name": "BRANCH", "value": repo_branch})
 
         if access_token:
-            secret_name = self._create_git_token_secret(access_token)
+            secret_name = await self._create_git_token_secret(access_token)
             env.append(
                 {
                     "name": "GIT_ACCESS_TOKEN",
@@ -808,7 +816,7 @@ class RemoteLabKubeSpawner(KubeSpawner):
                     safe_username = self._expand_user_properties("{username}")
                     home_volume_name = f"volume-{safe_username}"
                     home_mount_path = self._get_home_mount_path(home_volume_name)
-                    init_container = self._build_git_init_container(
+                    init_container = await self._build_git_init_container(
                         sanitized_url, repo_name, home_volume_name, home_mount_path, repo_branch, access_token
                     )
                     self.init_containers = [init_container] + list(self.init_containers or [])
@@ -900,7 +908,7 @@ class RemoteLabKubeSpawner(KubeSpawner):
     async def stop(self, now=False):
         """Stop the container and record quota usage."""
         # Clean up any leftover git token secrets
-        self._cleanup_git_token_secrets()
+        await self._cleanup_git_token_secrets()
 
         if self.quota_enabled and hasattr(self, "usage_session_id") and self.usage_session_id:
             session_id = self.usage_session_id
