@@ -172,7 +172,10 @@ class ChangePasswordHandler(BaseHandler):
             return self.finish("Current password is incorrect")
 
         try:
-            firstuse_auth.set_password(username, new_password, force_change=False)
+            result = firstuse_auth.set_password(username, new_password, force_change=False)
+            if "too short" in result.lower():
+                self.set_status(400)
+                return self.finish(result)
             self.redirect(self.hub.base_url + "auth/change-password?password_changed=1")
         except Exception as e:
             self.log.error(f"Failed to change password for {username}: {e}")
