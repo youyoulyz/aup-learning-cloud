@@ -289,13 +289,15 @@ function remove_aup_learning_cloud_runtime() {
     helm uninstall jupyterhub --namespace jupyterhub
 }
 
+# Build local images. Optional: list of Makefile targets (e.g. hub, cv, base-cpu). Default: all.
 function local_image_build() {
     if ! command -v docker &> /dev/null; then
         echo "Please install docker"
         exit 1
     fi
 
-    echo "Building local images..."
+    local targets=("${@:-all}")
+    echo "Building local images: ${targets[*]}"
 
     # When using Docker runtime, images stay in Docker; no need to export to K3S_IMAGES_DIR
     if [[ "${K3S_USE_DOCKER}" != "1" ]]; then
@@ -315,13 +317,14 @@ function local_image_build() {
         images_dir_for_make="${K3S_IMAGES_DIR}"
     fi
 
-    cd dockerfiles/ && make \
+    (cd dockerfiles/ && make \
         SAVE_IMAGES="${save_images_for_make}" \
         K3S_IMAGES_DIR="${images_dir_for_make}" \
         IMAGES="${IMAGES[*]}" \
         MIRROR_PREFIX="${MIRROR_PREFIX}" \
         MIRROR_PIP="${MIRROR_PIP}" \
-        MIRROR_NPM="${MIRROR_NPM}"
+        MIRROR_NPM="${MIRROR_NPM}" \
+        "${targets[@]}")
 
     echo "-------------------------------------------"
 }
@@ -442,15 +445,16 @@ function show_help() {
 Usage: ./auplc-installer <command> [subcommand]
 
 Commands:
-  install              Full installation (k3s + images + runtime)
-  uninstall            Remove everything
-  install-tools        Install helm and k9s
+  install               Full installation (k3s + images + runtime)
+  uninstall             Remove everything
+  install-tools         Install helm and k9s
 
   rt install            Deploy JupyterHub runtime only
   rt upgrade            Upgrade JupyterHub runtime
   rt remove             Remove JupyterHub runtime
 
-  img build             Build custom images locally
+  img build             Build all custom images
+  img build [target...] Build custom images (default: all). e.g. img build hub, img build hub cv
   img pull              Pull external images for offline use
 
 Runtime Configuration:
@@ -463,7 +467,7 @@ Runtime Configuration:
 
   Examples:
     ./auplc-installer install                    # Docker mode (default)
-    K3S_USE_DOCKER=0 ./auplc-installer install  # containerd + export mode
+    K3S_USE_DOCKER=0 ./auplc-installer install   # containerd + export mode
 
 Mirror Configuration:
   MIRROR_PREFIX   Registry mirror (e.g. mirror.example.com)
@@ -496,9 +500,12 @@ case "$1" in
         ;;
     img)
         case "${2:-}" in
-            build) local_image_build ;;
+            build)
+                shift 2
+                local_image_build "$@"
+                ;;
             pull) pull_external_images ;;
-            *) echo "Usage: $0 img {build|pull}"; exit 1 ;;
+            *) echo "Usage: $0 img {build [target...]|pull}. Targets: all, hub, base-cpu, base-gfx1151, cv, dl, llm, physim"; exit 1 ;;
         esac
         ;;
     # Legacy long form (still supported)
