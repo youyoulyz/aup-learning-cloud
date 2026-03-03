@@ -59,11 +59,10 @@ on:
         type: choice
         options:
           - all
-          - gfx110X-all
+          - gfx110x
           - gfx1150
           - gfx1151
-          - gfx1152
-          - gfx120X-all
+          - gfx120x
 
 # Prevent duplicate builds on the same branch / PR
 concurrency:
