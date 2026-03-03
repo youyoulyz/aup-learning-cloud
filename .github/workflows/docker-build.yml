@@ -91,7 +91,7 @@ jobs:
       is-tag: ${{ steps.check.outputs.is-tag }}
       gpu-targets: ${{ steps.config.outputs.targets }}
       default-gpu-target: ${{ steps.config.outputs.default }}
-      courses: ${{ steps.config.outputs.courses }}
+      course-list: ${{ steps.config.outputs.courses }}
     steps:
       - uses: actions/checkout@v4
 
@@ -394,7 +394,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        course: ${{ fromJSON(needs.changes.outputs.courses) }}
+        course: ${{ fromJSON(needs.changes.outputs.course-list) }}
         gpu_target: ${{ fromJSON(needs.changes.outputs.gpu-targets) }}
     steps:
       - name: Checkout code
