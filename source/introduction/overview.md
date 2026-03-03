@@ -23,6 +23,10 @@ AUP Learning Cloud provides a multi-user Jupyter notebook environment optimized 
 
 Kubernetes provides a robust infrastructure for deploying and managing JupyterHub. We support both single-node and multi-node K3s cluster deployments.
 
+### Spawn UI: URL and Git Repository
+
+We provide a basic **ROCm + PyTorch** environment; you can clone your own Git repository into this environment at server start (via URL and branch or by selecting a repo from your GitHub account). Your code is then available in the workspace so you can run it immediately.
+
 ### Authentication
 
 Seamless integration with GitHub Single Sign-On (SSO) and Native Authenticator for secure and efficient user authentication:
