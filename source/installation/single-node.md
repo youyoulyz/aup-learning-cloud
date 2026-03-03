@@ -25,9 +25,22 @@ For the shortest path, see the [Quick Start](quick-start.md) guide.
 
 On the **develop** branch, single-node installation is done with the **auplc-installer** script at the repository root.
 
-### 1. Install Docker
+### 1. Package dependency
 
-The installer uses the host Docker by default so that image updates are visible to K3s without re-export. Install Docker first:
+Install build tools (required for building container images):
+
+```bash
+sudo apt install build-essential
+```
+
+### 2. Install Docker
+
+By default, Docker is used as the K3s container runtime (backend).
+
+:::{dropdown} Install Docker — skip if already installed
+:animate: fade-in
+
+If Docker is already installed and your user is in the `docker` group, skip this section.
 
 ```bash
 # Install Docker
@@ -39,9 +52,6 @@ sudo usermod -aG docker $USER
 # Apply group changes (or logout/login)
 newgrp docker
 
-# Install Build Tools (needed for building images)
-sudo apt install build-essential
-
 # Verify installation
 docker --version
 ```
@@ -49,13 +59,13 @@ docker --version
 :::{seealso}
 See [Docker Post-installation Steps](https://docs.docker.com/engine/install/linux-postinstall/) for detailed configuration.
 :::
+:::
 
-### 2. Clone the repository and run the installer
+### 3. Clone the repository and run the installer
 
 ```bash
 git clone https://github.com/AMDResearch/aup-learning-cloud.git
-cd aup-learning-cloud
-git checkout develop
+cd aup-learning-cloud && chmod +x auplc-installer
 
 # Full installation (K3s, Helm, K9s, ROCm device plugin, images, JupyterHub)
 sudo ./auplc-installer install
@@ -63,7 +73,7 @@ sudo ./auplc-installer install
 
 After installation completes, open <http://localhost:30890> in your browser. The default uses **auto-login** — no credentials required.
 
-### 3. auplc-installer commands
+### 4. auplc-installer commands
 
 | Command | Description |
 |---------|-------------|
@@ -94,7 +104,7 @@ sudo ./auplc-installer rt reinstall
 ./auplc-installer help
 ```
 
-### 4. Runtime and mirror configuration
+### 5. Runtime and mirror configuration
 
 You can pass environment variables when running the installer:
 
@@ -112,7 +122,7 @@ You can pass environment variables when running the installer:
 
 - **MIRROR_PIP** / **MIRROR_NPM** — Package mirrors for image builds (e.g. `img build`).
 
-### 5. Configure runtime (optional)
+### 6. Configure runtime (optional)
 
 To customize auth, images, storage, network, and other options, edit **`runtime/values.yaml`**. For all available settings and recommended workflow, see the [Configuration Reference: runtime/values.yaml](../jupyterhub/configuration-reference.md).
 
@@ -122,7 +132,7 @@ After editing, run:
 sudo ./auplc-installer rt upgrade
 ```
 
-### 6. Verify deployment
+### 7. Verify deployment
 
 ```bash
 # Check all pods are running
