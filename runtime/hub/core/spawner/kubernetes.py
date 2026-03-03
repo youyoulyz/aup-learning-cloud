@@ -620,6 +620,18 @@ class RemoteLabKubeSpawner(KubeSpawner):
         # Set basic configuration
         self.image = self.resource_images[resource_type]
 
+        # Override image based on accelerator selection
+        if gpu_selection and self._hub_config:
+            metadata = self._hub_config.get_resource_metadata(resource_type)
+            if metadata and metadata.imageOverrides:
+                override_image = metadata.imageOverrides.get(gpu_selection)
+                if override_image:
+                    self.log.info(
+                        f"Image override for {resource_type}/{gpu_selection}: "
+                        f"{self.image} -> {override_image}"
+                    )
+                    self.image = override_image
+
         # Set resource requirements
         requirements = self.resource_requirements[resource_type]
 

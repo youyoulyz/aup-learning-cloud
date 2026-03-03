@@ -32,6 +32,7 @@ export interface ResourceMetadata {
   accelerator?: string;
   acceleratorKeys?: string[];
   allowGitClone?: boolean;
+  imageOverrides?: Record<string, string>;
 }
 
 export interface Resource {

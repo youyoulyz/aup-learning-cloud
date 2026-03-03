@@ -94,6 +94,7 @@ class ResourceMetadata(BaseModel):
     accelerator: str = ""
     acceleratorKeys: list[str] = Field(default_factory=list)
     allowGitClone: bool = False
+    imageOverrides: dict[str, str] | None = None
 
     model_config = {"extra": "allow"}
 
