@@ -124,12 +124,12 @@ function resolve_gpu_config() {
     case "$input" in
         gfx1100|gfx1101|gfx1102|gfx1103|phx)
             ACCEL_KEY="phx"
-            GPU_TARGET="gfx110x"
+            GPU_TARGET="gfx110X"
             ACCEL_ENV="11.0.0"
             ;;
         gfx1150|strix)
             ACCEL_KEY="strix"
-            GPU_TARGET="gfx110x"
+            GPU_TARGET="gfx110X"
             ACCEL_ENV="11.0.0"
             ;;
         gfx1151|strix-halo)
@@ -190,9 +190,10 @@ function generate_values_overlay() {
         echo "      Course-CV: \"ghcr.io/amdresearch/auplc-cv:${tag}\""
         echo "      Course-DL: \"ghcr.io/amdresearch/auplc-dl:${tag}\""
         echo "      Course-LLM: \"ghcr.io/amdresearch/auplc-llm:${tag}\""
+        echo "      Course-SHT-HIP: \"ghcr.io/amdresearch/auplc-sht-hip:${tag}\""
         echo "      Course-PhySim: \"ghcr.io/amdresearch/auplc-physim:${tag}\""
         echo "    metadata:"
-        for resource in gpu Course-CV Course-DL Course-LLM Course-PhySim; do
+        for resource in gpu Course-CV Course-DL Course-LLM Course-SHT-HIP Course-PhySim ; do
             echo "      ${resource}:"
             echo "        acceleratorKeys:"
             echo "          - ${ACCEL_KEY}"

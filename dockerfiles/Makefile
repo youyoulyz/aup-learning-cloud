@@ -81,7 +81,7 @@ hub:
 	$(MAKE) save-image IMAGE=ghcr.io/amdresearch/auplc-hub:latest
 
 # --- Course Images ---
-courses: cv dl llm physim
+courses: cv dl llm physim sht-hip
 
 cv:
 	@echo "-------------------------------------------"; \
@@ -118,6 +118,15 @@ physim:
 	cd Courses/PhySim && BASE_IMAGE=$(GPU_BASE_IMAGE) bash ./build.sh
 	docker tag ghcr.io/amdresearch/auplc-physim:latest ghcr.io/amdresearch/auplc-physim:latest-$(GPU_TARGET)
 	$(MAKE) save-image IMAGE=ghcr.io/amdresearch/auplc-physim:latest
+
+sht-hip:
+	@echo "-------------------------------------------"; \
+		echo "Building SHT-HIP Course Image..."; \
+		echo "-------------------------------------------";
+
+	cd Courses/SHT-HIP && BASE_IMAGE=$(GPU_BASE_IMAGE) bash ./build.sh
+	docker tag ghcr.io/amdresearch/auplc-sht-hip:latest ghcr.io/amdresearch/auplc-sht-hip:latest-$(GPU_TARGET)
+	$(MAKE) save-image IMAGE=ghcr.io/amdresearch/auplc-sht-hip:latest
 
 # --- Export Images ---
 save-image:
