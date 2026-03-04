@@ -60,9 +60,7 @@ on:
         options:
           - all
           - gfx110x
-          - gfx1150
           - gfx1151
-          - gfx120x
 
 # Build matrix is defined in .github/build-config.json
 
