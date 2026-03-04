@@ -721,7 +721,9 @@ class RemoteLabKubeSpawner(KubeSpawner):
                                 self.environment.pop(key, None)
                             else:
                                 self.environment[key] = value
-                        self.log.debug(f"Applied acceleratorOverrides env for {resource_type}/{gpu_selection}: {accel_override.env}")
+                        self.log.debug(
+                            f"Applied acceleratorOverrides env for {resource_type}/{gpu_selection}: {accel_override.env}"
+                        )
 
         # Special configuration for NPU resources
         if resource_type in ["Tutorial-NPU-Resnet", "ROSCON2025-GPU", "ROSCON2025-NPU"]:
