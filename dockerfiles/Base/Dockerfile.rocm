@@ -102,7 +102,7 @@ RUN apt-get update && \
     fi
 
 # Install ROCm PyTorch
-RUN WHL_TARGET="${PYTORCH_WHL_TARGET:-${GPU_TARGET}}-all" && \
+RUN WHL_TARGET="${PYTORCH_WHL_TARGET:-${GPU_TARGET}" && \
     INDEX_URL="${PYTORCH_INDEX_URL:-https://repo.amd.com/rocm/whl/${WHL_TARGET}/}" && \
     python3 -m pip install --no-cache-dir \
     --index-url "${INDEX_URL}" \
