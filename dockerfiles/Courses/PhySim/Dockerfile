@@ -30,7 +30,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libvulkan1 mesa-vulkan-drivers vulkan-tools \
  && rm -rf /var/lib/apt/lists/*
 
- RUN ln -sf /opt/rocm/lib/llvm/bin/ld.lld /usr/local/bin/ld.lld
+RUN ln -sf /opt/rocm/lib/llvm/bin/ld.lld /usr/local/bin/ld.lld
 
 # IMPORTANT: must remain under USER root here. pip install as jovyan silently
 # falls back to ~/.local/, which gets masked by the PVC mount at runtime.
