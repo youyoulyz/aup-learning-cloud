@@ -354,7 +354,7 @@ hub:
       # Same as Option 2
 ```
 
-> For more details, see [JupyterHub Configuration Guide](../docs/jupyterhub/README.md)
+> For more details, see [JupyterHub Configuration Guide](https://amdresearch.github.io/aup-learning-cloud/jupyterhub/configuration-reference.html)
 
 #### Deploy
 
@@ -406,7 +406,7 @@ helm uninstall jupyterhub --namespace jupyterhub
 /usr/local/bin/k3s-uninstall.sh
 ```
 
-> For more maintenance details, see [Maintenance Manual](../docs/user-manual/aup-remote-lab-user-manual-admin-new.md)
+> For more maintenance details, see [Admin Manual](https://amdresearch.github.io/aup-learning-cloud/user-guide/admin-manual.html)
 
 ---
 
