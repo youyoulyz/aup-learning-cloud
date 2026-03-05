@@ -19,7 +19,7 @@
 
 # SHT-HIP Course Dockerfile
 # Based on official AMD ROCm Ubuntu 24.04 complete image
-FROM rocm/dev-ubuntu-24.04:7.2-complete
+FROM rocm/dev-ubuntu-24.04:7.2
 
 SHELL ["/bin/bash", "-c"]
 
@@ -44,6 +44,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     locales \
     fonts-liberation \
     run-one \
+    perl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
