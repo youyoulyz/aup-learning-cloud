@@ -18,10 +18,16 @@
 # SOFTWARE.
 
 # Use a verified ROCm PyTorch image as base
-FROM ghcr.io/amdresearch/base-gfx1151:v0.1-full
+ARG BASE_IMAGE=ghcr.io/amdresearch/auplc-base:latest
+FROM ${BASE_IMAGE}
 
-# Install JupyterHub and related packages system-wide
-RUN pip3 install --no-cache-dir --break-system-packages \
+# IMPORTANT: base image ends with USER jovyan. pip install as jovyan silently
+# falls back to ~/.local/, which gets masked by the PVC mount at runtime.
+# Always switch to root before pip install to ensure system-wide installation.
+USER root
+
+# Install course-specific packages system-wide
+RUN pip3 install --no-cache-dir \
     transformers \    
     datasets>=2.14.0 \
     tokenizers>=0.15.0 \
@@ -49,7 +55,7 @@ RUN pip3 install --no-cache-dir --break-system-packages \
 USER root
 
 # Copy related rocm notebooks into the docker
-COPY LLM/ /opt/workspace/LLM
+COPY ./course_data /opt/workspace/LLM
 
 #FasionMNIST
 RUN mkdir -p /opt/workspace/LLM/data/FashionMNIST/raw && cd /opt/workspace/LLM/data/FashionMNIST/raw && \

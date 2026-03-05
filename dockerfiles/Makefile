@@ -2,6 +2,9 @@
 
 SHELL := /bin/bash
 
+
+# Export to K3s image dir: off by default. Set SAVE_IMAGES=1 and K3S_IMAGES_DIR to enable.
+SAVE_IMAGES ?=
 K3S_IMAGES_DIR ?= /var/lib/rancher/k3s/agent/images
 
 # Mirror configuration (optional)
@@ -12,6 +15,12 @@ K3S_IMAGES_DIR ?= /var/lib/rancher/k3s/agent/images
 MIRROR_PREFIX ?=
 MIRROR_PIP ?=
 MIRROR_NPM ?=
+
+# GPU target architecture (e.g. gfx110X-all, gfx1150, gfx1151, gfx1152, gfx120X-all)
+GPU_TARGET ?= gfx1151
+
+# GPU base image used by course Dockerfiles (override to track a specific version)
+GPU_BASE_IMAGE ?= ghcr.io/amdresearch/auplc-base:latest
 
 # Build args for docker build (constructed from mirror settings)
 BUILD_ARGS :=
@@ -26,13 +35,13 @@ ifneq ($(MIRROR_NPM),)
   BUILD_ARGS += --build-arg NPM_REGISTRY=$(MIRROR_NPM)
 endif
 
-.PHONY: all base base-cpu base-gfx1151 hub courses cv dl llm physim
+.PHONY: all base base-cpu base-rocm base-gfx1151 hub courses cv dl llm physim
 
 # Build all images
 all: base hub courses
 
 # --- Base Images ---
-base: base-cpu base-gfx1151
+base: base-cpu base-rocm
 
 base-cpu:
 	@echo "-------------------------------------------"; \
@@ -44,14 +53,19 @@ base-cpu:
 		-t ghcr.io/amdresearch/auplc-default:latest --file Dockerfile.cpu .
 	$(MAKE) save-image IMAGE=ghcr.io/amdresearch/auplc-default:latest
 
-base-gfx1151:
+base-rocm:
 	@echo "-------------------------------------------"; \
-	 	echo "Building Base Image (gfx1151)..."; \
+	 	echo "Building Base Image (rocm, GPU_TARGET=$(GPU_TARGET))..."; \
 		echo "-------------------------------------------";
 
 	cd Base && docker build $(BUILD_ARGS) \
+		--build-arg GPU_TARGET=$(GPU_TARGET) \
 		$(if $(MIRROR_PREFIX),--build-arg BASE_IMAGE=$(MIRROR_PREFIX)/docker.io/library/ubuntu:24.04,) \
-		-t ghcr.io/amdresearch/base-gfx1151:v0.1-full --file Dockerfile.gfx1151 .
+		-t ghcr.io/amdresearch/auplc-base:latest --file Dockerfile.rocm .
+	docker tag ghcr.io/amdresearch/auplc-base:latest ghcr.io/amdresearch/auplc-base:latest-$(GPU_TARGET)
+
+# Deprecated alias — use base-rocm instead
+base-gfx1151: base-rocm
 
 # --- Hub Image ---
 hub:
@@ -74,7 +88,8 @@ cv:
 		echo "Building CV Course Image..."; \
 		echo "-------------------------------------------";
 
-	cd Courses/CV && bash ./build.sh
+	cd Courses/CV && BASE_IMAGE=$(GPU_BASE_IMAGE) bash ./build.sh
+	docker tag ghcr.io/amdresearch/auplc-cv:latest ghcr.io/amdresearch/auplc-cv:latest-$(GPU_TARGET)
 	$(MAKE) save-image IMAGE=ghcr.io/amdresearch/auplc-cv:latest
 
 dl:
@@ -82,7 +97,8 @@ dl:
 		echo "Building DL Course Image..."; \
 		echo "-------------------------------------------";
 
-	cd Courses/DL && bash ./build.sh
+	cd Courses/DL && BASE_IMAGE=$(GPU_BASE_IMAGE) bash ./build.sh
+	docker tag ghcr.io/amdresearch/auplc-dl:latest ghcr.io/amdresearch/auplc-dl:latest-$(GPU_TARGET)
 	$(MAKE) save-image IMAGE=ghcr.io/amdresearch/auplc-dl:latest
 
 llm:
@@ -90,7 +106,8 @@ llm:
 		echo "Building LLM Course Image..."; \
 		echo "-------------------------------------------";
 
-	cd Courses/LLM && bash ./build.sh
+	cd Courses/LLM && BASE_IMAGE=$(GPU_BASE_IMAGE) bash ./build.sh
+	docker tag ghcr.io/amdresearch/auplc-llm:latest ghcr.io/amdresearch/auplc-llm:latest-$(GPU_TARGET)
 	$(MAKE) save-image IMAGE=ghcr.io/amdresearch/auplc-llm:latest
 
 physim:
@@ -98,12 +115,13 @@ physim:
 		echo "Building PhySim Course Image..."; \
 		echo "-------------------------------------------";
 
-	cd Courses/PhySim && bash ./build.sh
+	cd Courses/PhySim && BASE_IMAGE=$(GPU_BASE_IMAGE) bash ./build.sh
+	docker tag ghcr.io/amdresearch/auplc-physim:latest ghcr.io/amdresearch/auplc-physim:latest-$(GPU_TARGET)
 	$(MAKE) save-image IMAGE=ghcr.io/amdresearch/auplc-physim:latest
 
 # --- Export Images ---
 save-image:
-	@if [ -n "$(K3S_IMAGES_DIR)" ]; then \
+	@if [ -n "$(SAVE_IMAGES)" ] && [ -n "$(K3S_IMAGES_DIR)" ]; then \
 		echo "Exporting $(IMAGE) to $(K3S_IMAGES_DIR)..."; \
 		filename=$$(basename $(IMAGE)); \
 		filename=$$(echo $$filename | sed 's/:/-/g').tar; \
@@ -115,5 +133,5 @@ save-image:
 		sudo docker save "$(IMAGE)" -o "$$out_path" && echo "✅ Success" || (echo "❌ ERROR"; exit 1); \
 		echo "-------------------------------------------"; \
 	else \
-		echo "K3S_IMAGES_DIR not set. Skipping export for $(IMAGE)."; \
+		echo "Skipping export for $(IMAGE) (set SAVE_IMAGES=1 and K3S_IMAGES_DIR to enable)."; \
 	fi

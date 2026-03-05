@@ -23,7 +23,8 @@ SOFTWARE.
 
 AUP Learning Cloud is a tailored JupyterHub deployment designed to provide an intuitive and hands-on AI learning experience. It features a comprehensive suite of AI toolkits running on AMD hardware acceleration, enabling users to learn and experiment with ease.
 
-![Software Architecture](docs/imgs/software-stack.png)
+![Software Architecture](deploy/docs/images/software-stack.png)
+
 
 ## Quick Start
 
@@ -55,48 +56,28 @@ sudo apt install build-essential
 ### Installation
 ```bash
 git clone https://github.com/AMDResearch/aup-learning-cloud.git
-cd aup-learning-cloud/deploy/
-sudo ./single-node.sh install
+cd aup-learning-cloud
+sudo ./auplc-installer install
 ```
-
 After installation completes, open http://localhost:30890 in your browser. No login credentials are required - you will be automatically logged in.
+The installer uses **Docker as the default container runtime** (`K3S_USE_DOCKER=1`), see more at [link](https://amdresearch.github.io/aup-learning-cloud/installation/single-node.html#runtime-and-mirror-configuration)
 
-### Script Commands
 
-| Command | Description |
-|---------|-------------|
-| `install` | Full installation (K3s, tools, GPU plugin, images, JupyterHub) |
-| `uninstall` | Complete removal of all components |
-| `upgrade-runtime` | Upgrade JupyterHub deployment |
-| `build-images` | Build and import container images |
-| `pull-images` | Pull external images for offline use |
-| `install-tools` | Install Helm and K9s only |
-| `install-runtime` | Deploy JupyterHub only |
-| `remove-runtime` | Remove JupyterHub only |
-
-Example:
+### Uninstall
 ```bash
-# Upgrade JupyterHub after configuration changes
-sudo ./single-node.sh upgrade-runtime
-
-# Rebuild images after modifying Dockerfiles
-sudo ./single-node.sh build-images
+sudo ./auplc-installer uninstall
 ```
 
-> **💡 Tip**: If you need to use alternative container registries or package mirrors, see [Mirror Configuration](deploy/README.md#mirror-configuration).
-## Manual Installation
+> **💡 Tip**: For mirror configuration (registries, PyPI, npm), see [Mirror Configuration](deploy/README.md#mirror-configuration).
 
-For users who prefer step-by-step manual installation or need more control over the deployment process:
+## Cluster Installation
+For multi-node cluster installation or need more control over the deployment process:
 
-- [Single-Node Manual Deployment](deploy/README.md#single-node-deployment) - Detailed manual setup for development and demo environments
-- [Multi-Node Cluster Deployment](deploy/README.md#multi-node-cluster-deployment) - Production deployment with Ansible playbooks
+- [Multi-Node Cluster Deployment](https://amdresearch.github.io/aup-learning-cloud/installation/multi-node.html) - Production deployment with Ansible playbooks
 
 ## Learning Solution
 
 AUP Learning Cloud offers the following Learning Toolkits:
-
-> [!IMPORTANT]
-> Only [**Deep Learning**](projects/DL) and [**Large Language Model from Scratch**](projects/LLM) are available in the v1.0 release.
 
 - [**Computer Vision**](projects/CV) \
 Includes 10 hands-on labs covering common computer vision concepts and techniques.
@@ -108,7 +89,7 @@ Includes 12 hands-on labs covering common deep learning concepts and techniques.
 Includes 9 hands-on labs designed to teach LLM development from scratch.
 
 - [**Physical Simulation**](projects/PhySim) \
-Includes 4 hands-on labs on building a virtual robotic arm and grasping objects.
+Hands-on labs for physics simulation and robotics using Genesis.
 
 ## Key Features
 
@@ -137,31 +118,32 @@ Dynamic NFS provisioning ensures scalable and persistent storage for user data, 
 
 ## Available Notebook Environments
 
-Current environments are set up as `RESOURCE_IMAGES` in `runtime/jupyterhub/files/hub`. These settings should be consistent with `Prepullers` in `runtime/values.yaml`.
+Current environments are configured via `custom.resources.images` in `runtime/values.yaml`. These settings should be consistent with `prePuller.extraImages`.
 
-| Environment | Image                                    | Version | Hardware                        |
-| ----------- | ---------------------------------------- | ------- | ------------------------------- |
-| Base CPU    | `ghcr.io/amdresearch/auplc-default` | v1.0    | CPU                             |
-| CV COURSE   | `ghcr.io/amdresearch/auplc-cv`    | v1.0  | GPU (Strix-Halo) |
-| DL COURSE   | `ghcr.io/amdresearch/auplc-dl`    | v1.0  | GPU (Strix-Halo) |
-| LLM COURSE  | `ghcr.io/amdresearch/auplc-llm`   | v1.0  | GPU (Strix-Halo)                |
-| PhySim COURSE  | `ghcr.io/amdresearch/auplc-physim`   | v1.0  | GPU (Strix-Halo)                |
+| Environment | Image                                    | Hardware                        |
+| ----------- | ---------------------------------------- | ------------------------------- |
+| Base CPU    | `ghcr.io/amdresearch/auplc-default` | CPU                             |
+| GPU Base    | `ghcr.io/amdresearch/auplc-base`   | GPU                             |
+| CV COURSE   | `ghcr.io/amdresearch/auplc-cv`    | GPU |
+| DL COURSE   | `ghcr.io/amdresearch/auplc-dl`    | GPU |
+| LLM COURSE  | `ghcr.io/amdresearch/auplc-llm`   | GPU                |
+| PhySim COURSE | `ghcr.io/amdresearch/auplc-physim` | GPU               |
 
 ## Documentation
 
-- [JupyterHub Configuration](docs/jupyterhub/README.md) - Detailed JupyterHub settings
-- [Authentication Guide](docs/jupyterhub/authentication-guide.md) - GitHub OAuth and native authentication
-- [User Management Guide](docs/jupyterhub/user-management.md) - Batch user operations with scripts
-- [User Quota System](docs/jupyterhub/quota-system.md) - Resource usage tracking and quota management
-- [GitHub OAuth Setup](docs/jupyterhub/How_to_Setup_GitHub_OAuth.md) - OAuth configuration
-- [Maintenance Manual](docs/user-manual/aup-remote-lab-user-manual-admin-new.md) - Operations guide
+Full documentation is available at: **https://amdresearch.github.io/aup-learning-cloud/**
 
+- [Deployment Guide](deploy/README.md) - Single-node and multi-node deployment
+- [Configuration Reference](https://amdresearch.github.io/aup-learning-cloud/jupyterhub/configuration-reference.html) - `runtime/values.yaml` field reference
+- [Authentication Guide](https://amdresearch.github.io/aup-learning-cloud/jupyterhub/authentication-guide.html) - GitHub OAuth and native authentication
+- [User Management Guide](https://amdresearch.github.io/aup-learning-cloud/jupyterhub/user-management.html) - Batch user operations with scripts
+- [User Quota System](https://amdresearch.github.io/aup-learning-cloud/jupyterhub/quota-system.html) - Resource usage tracking and quota management
 
 ## Contributing
 
 Please refer to [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to contribute to the project.
 
-## Acknowledgments and Credits
+## Acknowledgment
 
 AUP would like to thank the following universities and professors. This learning solution was made possible through the joint efforts of these partners.
 
@@ -170,6 +152,8 @@ AUP would like to thank the following universities and professors. This learning
 | National Taiwan University | [Prof. Chun-Yi Lee](https://www.csie.ntu.edu.tw/en/member/Faculty/Chun-Yi-Lee-67240464), [ELSA Lab](https://elsalab.ai/) | DL, CV |
 | Nanjing University | [Prof. Jingwei Xu](https://njudeepengine.github.io/jingweixu/), [NJUDeepEngine](https://github.com/NJUDeepEngine) | LLM |
 
-The following repositories are used in AUP Learning Cloud, either in close to original form or as an inspiration:
+The following repositories and icons are used in AUP Learning Cloud, either in close to original form or as an inspiration:
 
 * [Genesis](https://github.com/Genesis-Embodied-AI/Genesis)
+
+* [Flaticon](https://www.flaticon.com): deployment (Prashanth Rapolu 15, Freepik), team & user (Freepik), machine learning (Becris).
