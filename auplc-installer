@@ -119,12 +119,13 @@ function detect_offline_bundle() {
     image_registry=$(sed -n 's/.*"image_registry"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "${BUNDLE_DIR}/manifest.json")
     image_tag=$(sed -n 's/.*"image_tag"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "${BUNDLE_DIR}/manifest.json")
 
+    [[ -n "${image_registry}" ]] && IMAGE_REGISTRY="${image_registry}"
+    [[ -n "${image_tag}" ]] && IMAGE_TAG="${image_tag}"
+
     if [[ -n "${gpu_target}" ]]; then
         GPU_TARGET="${gpu_target}"
         ACCEL_KEY="${accel_key}"
         ACCEL_ENV="${accel_env}"
-        [[ -n "${image_registry}" ]] && IMAGE_REGISTRY="${image_registry}"
-        [[ -n "${image_tag}" ]] && IMAGE_TAG="${image_tag}"
         echo "  GPU config: accelerator=${ACCEL_KEY}, GPU_TARGET=${GPU_TARGET}${ACCEL_ENV:+, HSA_OVERRIDE=${ACCEL_ENV}}"
     fi
 }
@@ -734,7 +735,7 @@ function load_offline_images() {
 
     local loaded=0 failed=0
 
-    for tar_file in "${BUNDLE_DIR}/images/"custom/*.tar "${BUNDLE_DIR}/images/"external/*.tar; do
+    for tar_file in "${BUNDLE_DIR}/images/custom"/*.tar "${BUNDLE_DIR}/images/external"/*.tar; do
         [[ -f "${tar_file}" ]] || continue
         echo "  Importing: $(basename "${tar_file}")"
         if sudo k3s ctr images import "${tar_file}" 2>/dev/null; then
