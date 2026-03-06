@@ -123,8 +123,6 @@ jobs:
           echo "Bundle: ${BUNDLE}"
           echo "Size: $(du -sh "${BUNDLE}" | cut -f1)"
           tar tzf "${BUNDLE}" 2>/dev/null | head -30
-          echo "---"
-          echo "Total files: $(tar tzf "${BUNDLE}" | wc -l)"
 
       - name: Upload bundle as artifact
         uses: actions/upload-artifact@v4
@@ -205,8 +203,6 @@ jobs:
           echo "Bundle: ${BUNDLE}"
           echo "Size: $(du -sh "${BUNDLE}" | cut -f1)"
           tar tzf "${BUNDLE}" 2>/dev/null | head -30
-          echo "---"
-          echo "Total files: $(tar tzf "${BUNDLE}" | wc -l)"
 
       - name: Upload bundle as artifact
         uses: actions/upload-artifact@v4
