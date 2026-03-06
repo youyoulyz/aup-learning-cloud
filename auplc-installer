@@ -1034,11 +1034,6 @@ EOF
 }
 
 function pack_bundle() {
-    if [[ $EUID -ne 0 ]]; then
-        echo "Error: This script must be run as root." >&2
-        exit 1
-    fi
-
     local flag="${1:-}"
 
     echo "==========================================="

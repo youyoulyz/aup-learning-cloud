@@ -22,32 +22,25 @@ name: Pack Offline Bundle
 on:
   workflow_dispatch:
     inputs:
-      gpu_target:
-        description: 'GPU target for the bundle'
-        required: true
-        default: 'gfx1151'
-        type: choice
-        options:
-          - gfx110x
-          - gfx1151
       gpu_type:
-        description: 'GPU type (accelerator name)'
+        description: 'GPU type (determines target architecture and HSA config)'
         required: true
         default: 'strix-halo'
         type: choice
         options:
-          - strix-halo
-          - strix
-          - phx
+          - strix-halo   # gfx1151 — Ryzen AI Max+ 395 / Max 390
+          - phx          # gfx110x — Ryzen AI 300 (Phoenix)
+          - strix        # gfx110x + HSA override — Ryzen AI 300 (Strix Point)
+          - rdna4        # gfx120x — Radeon RX 9000 series
+      image_tag:
+        description: 'Image tag prefix (default: current branch name, e.g. develop, latest, v1.0)'
+        required: false
+        default: ''
+        type: string
       image_registry:
-        description: 'Registry prefix for custom images'
+        description: 'Registry prefix for custom images (override for forks or private registries)'
         required: false
         default: 'ghcr.io/amdresearch'
-        type: string
-      image_tag:
-        description: 'Image tag prefix (e.g. latest, develop, v1.0)'
-        required: false
-        default: 'latest'
         type: string
       create_release:
         description: 'Create a GitHub Release with the bundle'
@@ -61,7 +54,7 @@ permissions:
 
 jobs:
   pack:
-    name: "Pack Bundle (${{ inputs.gpu_target }})"
+    name: "Pack Bundle (${{ inputs.gpu_type }})"
     runs-on: ubuntu-latest
     steps:
       - name: Free disk space
@@ -89,11 +82,11 @@ jobs:
           password: ${{ secrets.GH_PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Run pack command
-        run: |
-          GPU_TYPE="${{ inputs.gpu_type }}" \
-          IMAGE_REGISTRY="${{ inputs.image_registry }}" \
-          IMAGE_TAG="${{ inputs.image_tag }}" \
-          ./auplc-installer pack
+        env:
+          GPU_TYPE: ${{ inputs.gpu_type }}
+          IMAGE_REGISTRY: ${{ inputs.image_registry }}
+          IMAGE_TAG: ${{ inputs.image_tag || github.ref_name }}
+        run: ./auplc-installer pack
 
       - name: Verify bundle
         run: |
@@ -109,7 +102,7 @@ jobs:
       - name: Upload bundle as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: auplc-bundle-${{ inputs.gpu_target }}
+          name: auplc-bundle-${{ inputs.gpu_type }}
           path: auplc-bundle-*.tar.gz
           retention-days: 7
           compression-level: 0  # already compressed
@@ -121,17 +114,17 @@ jobs:
         run: |
           BUNDLE=$(ls auplc-bundle-*.tar.gz)
           BUNDLE_NAME=$(basename "${BUNDLE}" .tar.gz)
-          TAG="bundle-${{ inputs.gpu_target }}-$(date +%Y%m%d)"
+          TAG="bundle-${{ inputs.gpu_type }}-$(date +%Y%m%d)"
 
           gh release create "${TAG}" "${BUNDLE}" \
-            --title "Offline Bundle: ${{ inputs.gpu_target }} ($(date +%Y-%m-%d))" \
+            --title "Offline Bundle: ${{ inputs.gpu_type }} ($(date +%Y-%m-%d))" \
             --notes "$(cat <<EOF
           ## Offline Deployment Bundle
 
-          - **GPU Target**: ${{ inputs.gpu_target }}
           - **GPU Type**: ${{ inputs.gpu_type }}
+          - **Image Tag**: ${{ inputs.image_tag || github.ref_name }}
           - **Bundle**: ${BUNDLE_NAME}
-          - **Built from**: ${{ github.sha }}
+          - **Built from**: ${{ github.sha }} (${{ github.ref_name }})
 
           ### Usage
           \`\`\`bash
