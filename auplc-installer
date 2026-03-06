@@ -933,8 +933,12 @@ function pack_save_custom_images_pull() {
     for name in "${PLAIN_CUSTOM_NAMES[@]}"; do
         local image="${IMAGE_REGISTRY}/${name}:${IMAGE_TAG}"
         if pull_and_tag "${image}"; then
-            docker save "${image}" -o "${staging}/images/custom/${name}.tar"
-            echo "  Saved: ${name}"
+            docker tag "${image}" "${IMAGE_REGISTRY}/${name}:latest"
+            docker save \
+                "${IMAGE_REGISTRY}/${name}:latest" \
+                "${IMAGE_REGISTRY}/${name}:${IMAGE_TAG}" \
+                -o "${staging}/images/custom/${name}.tar"
+            echo "  Saved: ${name} (:latest + :${IMAGE_TAG})"
         else
             failed=$((failed + 1))
         fi
@@ -975,9 +979,12 @@ function pack_save_custom_images_local() {
     done
 
     for name in "${PLAIN_CUSTOM_NAMES[@]}"; do
-        docker save "${IMAGE_REGISTRY}/${name}:latest" \
+        docker tag "${IMAGE_REGISTRY}/${name}:latest" "${IMAGE_REGISTRY}/${name}:${IMAGE_TAG}"
+        docker save \
+            "${IMAGE_REGISTRY}/${name}:latest" \
+            "${IMAGE_REGISTRY}/${name}:${IMAGE_TAG}" \
             -o "${staging}/images/custom/${name}.tar"
-        echo "  Saved: ${name}"
+        echo "  Saved: ${name} (:latest + :${IMAGE_TAG})"
     done
 }
 
