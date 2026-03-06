@@ -48,19 +48,10 @@ IMAGE_REGISTRY="${IMAGE_REGISTRY:-ghcr.io/amdresearch}"
 # Image tag prefix (e.g. latest, develop, v1.0). GPU suffix is appended automatically.
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 
-# Custom images (built locally or pulled from GHCR)
-CUSTOM_IMAGES=(
-    "${IMAGE_REGISTRY}/auplc-hub:latest"
-    "${IMAGE_REGISTRY}/auplc-default:latest"
-    "${IMAGE_REGISTRY}/auplc-cv:latest"
-    "${IMAGE_REGISTRY}/auplc-dl:latest"
-    "${IMAGE_REGISTRY}/auplc-llm:latest"
-)
-
-# GPU-specific custom images (have :latest-<gpu_target> tags)
+# GPU-specific custom images (tagged as :<IMAGE_TAG>-<gpu_target>)
 GPU_CUSTOM_NAMES=("auplc-base" "auplc-cv" "auplc-dl" "auplc-llm" "auplc-physim")
 
-# Non-GPU custom images (only :latest tag)
+# Non-GPU custom images (tagged as :<IMAGE_TAG>)
 PLAIN_CUSTOM_NAMES=("auplc-hub" "auplc-default")
 
 # External images required by JupyterHub at runtime
@@ -84,9 +75,6 @@ BUILD_ONLY_IMAGES=(
     "ubuntu:24.04"
     "quay.io/jupyter/base-notebook"
 )
-
-# Combined list for backward compatibility (img pull still pulls everything)
-IMAGES=("${CUSTOM_IMAGES[@]}")
 
 # GPU configuration globals (set by detect_and_configure_gpu)
 ACCEL_KEY=""
@@ -277,13 +265,6 @@ function generate_values_overlay() {
 # ============================================================
 # Tool Installation (Helm, K9s)
 # ============================================================
-
-function check_root() {
-    if [[ $EUID -ne 0 ]]; then
-        echo "Error: This script must be run as root." >&2
-        exit 1
-    fi
-}
 
 function install_tools() {
     echo "Checking/Installing tools (may require sudo)..."
@@ -575,7 +556,6 @@ function local_image_build() {
         GPU_TARGET="${GPU_TARGET}" \
         SAVE_IMAGES="${save_images_for_make}" \
         K3S_IMAGES_DIR="${images_dir_for_make}" \
-        IMAGES="${IMAGES[*]}" \
         MIRROR_PREFIX="${MIRROR_PREFIX}" \
         MIRROR_PIP="${MIRROR_PIP}" \
         MIRROR_NPM="${MIRROR_NPM}" \
@@ -769,6 +749,10 @@ function load_offline_images() {
 # Runtime Management
 # ============================================================
 
+# ============================================================
+# Runtime Management
+# ============================================================
+
 # Resolve chart/values paths (bundle or local repo)
 function get_runtime_paths() {
     if [[ "${OFFLINE_MODE}" == "1" ]]; then
@@ -782,11 +766,7 @@ function get_runtime_paths() {
     fi
 }
 
-function deply_aup_learning_cloud_runtime() {
-    detect_and_configure_gpu
-    get_runtime_paths
-    generate_values_overlay
-
+function deploy_aup_learning_cloud_runtime() {
     echo "Deploying AUP Learning Cloud Runtime..."
 
     helm install jupyterhub "${CHART_PATH}" --namespace jupyterhub \
@@ -818,6 +798,11 @@ function remove_aup_learning_cloud_runtime() {
 # ============================================================
 
 function deploy_all_components() {
+    if [[ $EUID -ne 0 ]]; then
+        echo "Error: This script must be run as root." >&2
+        exit 1
+    fi
+
     local flag="${1:-}"
 
     detect_and_configure_gpu
@@ -837,7 +822,7 @@ function deploy_all_components() {
     fi
 
     deploy_rocm_gpu_device_plugin
-    deply_aup_learning_cloud_runtime
+    deploy_aup_learning_cloud_runtime
 }
 
 function remove_all_components() {
@@ -1049,6 +1034,11 @@ EOF
 }
 
 function pack_bundle() {
+    if [[ $EUID -ne 0 ]]; then
+        echo "Error: This script must be run as root." >&2
+        exit 1
+    fi
+
     local flag="${1:-}"
 
     echo "==========================================="
@@ -1221,13 +1211,21 @@ case "$1" in
     detect-gpu) detect_and_configure_gpu ;;
     rt)
         case "${2:-}" in
-            install) deply_aup_learning_cloud_runtime ;;
+            install)
+                detect_and_configure_gpu
+                get_runtime_paths
+                generate_values_overlay
+                deploy_aup_learning_cloud_runtime
+                ;;
             upgrade) upgrade_aup_learning_cloud_runtime ;;
             remove) remove_aup_learning_cloud_runtime ;;
             reinstall)
                 remove_aup_learning_cloud_runtime || true
                 sleep 0.5
-                deply_aup_learning_cloud_runtime
+                detect_and_configure_gpu
+                get_runtime_paths
+                generate_values_overlay
+                deploy_aup_learning_cloud_runtime
                 ;;
             *) echo "Usage: $0 rt {install|upgrade|remove|reinstall}"; exit 1 ;;
         esac
@@ -1243,7 +1241,12 @@ case "$1" in
         esac
         ;;
     # Legacy long form (still supported)
-    install-runtime) deply_aup_learning_cloud_runtime ;;
+    install-runtime)
+        detect_and_configure_gpu
+        get_runtime_paths
+        generate_values_overlay
+        deploy_aup_learning_cloud_runtime
+        ;;
     remove-runtime) remove_aup_learning_cloud_runtime ;;
     upgrade-runtime) upgrade_aup_learning_cloud_runtime ;;
     build-images) local_image_build ;;
