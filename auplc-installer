@@ -895,6 +895,7 @@ function pack_copy_chart() {
 }
 
 # Save custom images: pull from GHCR, then docker save
+# All images are saved into a single tar to deduplicate shared layers.
 function pack_save_custom_images_pull() {
     local staging="$1"
     local tag="${IMAGE_TAG}-${GPU_TARGET}"
@@ -903,16 +904,14 @@ function pack_save_custom_images_pull() {
     mkdir -p "${staging}/images/custom"
 
     local failed=0
+    local all_refs=()
 
     for name in "${GPU_CUSTOM_NAMES[@]}"; do
         local image="${IMAGE_REGISTRY}/${name}:${tag}"
         if pull_and_tag "${image}"; then
             docker tag "${image}" "${IMAGE_REGISTRY}/${name}:latest"
-            docker save \
-                "${IMAGE_REGISTRY}/${name}:latest" \
-                "${IMAGE_REGISTRY}/${name}:${tag}" \
-                -o "${staging}/images/custom/${name}.tar"
-            echo "  Saved: ${name} (:latest + :${tag})"
+            all_refs+=("${IMAGE_REGISTRY}/${name}:latest" "${IMAGE_REGISTRY}/${name}:${tag}")
+            echo "  Pulled: ${name} (:latest + :${tag})"
         else
             failed=$((failed + 1))
         fi
@@ -922,11 +921,8 @@ function pack_save_custom_images_pull() {
         local image="${IMAGE_REGISTRY}/${name}:${IMAGE_TAG}"
         if pull_and_tag "${image}"; then
             docker tag "${image}" "${IMAGE_REGISTRY}/${name}:latest"
-            docker save \
-                "${IMAGE_REGISTRY}/${name}:latest" \
-                "${IMAGE_REGISTRY}/${name}:${IMAGE_TAG}" \
-                -o "${staging}/images/custom/${name}.tar"
-            echo "  Saved: ${name} (:latest + :${IMAGE_TAG})"
+            all_refs+=("${IMAGE_REGISTRY}/${name}:latest" "${IMAGE_REGISTRY}/${name}:${IMAGE_TAG}")
+            echo "  Pulled: ${name} (:latest + :${IMAGE_TAG})"
         else
             failed=$((failed + 1))
         fi
@@ -938,6 +934,10 @@ function pack_save_custom_images_pull() {
         rm -rf "${staging}"
         exit 1
     fi
+
+    echo "  Saving all custom images (shared layers deduplicated)..."
+    docker save "${all_refs[@]}" -o "${staging}/images/custom/auplc-custom.tar"
+    echo "  Saved: ${staging}/images/custom/auplc-custom.tar"
 }
 
 # Save custom images: build locally via Makefile, then docker save
@@ -956,24 +956,23 @@ function pack_save_custom_images_local() {
         MIRROR_NPM="${MIRROR_NPM}" \
         all)
 
-    echo "--- Saving built images to bundle ---"
+    echo "--- Saving built images to bundle (shared layers deduplicated) ---"
+
+    local all_refs=()
 
     for name in "${GPU_CUSTOM_NAMES[@]}"; do
-        docker save \
-            "${IMAGE_REGISTRY}/${name}:latest" \
-            "${IMAGE_REGISTRY}/${name}:${tag}" \
-            -o "${staging}/images/custom/${name}.tar"
-        echo "  Saved: ${name} (:latest + :${tag})"
+        all_refs+=("${IMAGE_REGISTRY}/${name}:latest" "${IMAGE_REGISTRY}/${name}:${tag}")
+        echo "  Queued: ${name} (:latest + :${tag})"
     done
 
     for name in "${PLAIN_CUSTOM_NAMES[@]}"; do
         docker tag "${IMAGE_REGISTRY}/${name}:latest" "${IMAGE_REGISTRY}/${name}:${IMAGE_TAG}"
-        docker save \
-            "${IMAGE_REGISTRY}/${name}:latest" \
-            "${IMAGE_REGISTRY}/${name}:${IMAGE_TAG}" \
-            -o "${staging}/images/custom/${name}.tar"
-        echo "  Saved: ${name} (:latest + :${IMAGE_TAG})"
+        all_refs+=("${IMAGE_REGISTRY}/${name}:latest" "${IMAGE_REGISTRY}/${name}:${IMAGE_TAG}")
+        echo "  Queued: ${name} (:latest + :${IMAGE_TAG})"
     done
+
+    docker save "${all_refs[@]}" -o "${staging}/images/custom/auplc-custom.tar"
+    echo "  Saved: ${staging}/images/custom/auplc-custom.tar"
 }
 
 # Save external images (always pulled from registries)
