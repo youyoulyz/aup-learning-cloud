@@ -131,6 +131,7 @@ jobs:
           compression-level: 0  # already compressed
 
       - name: Attach bundle to GitHub Release
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
