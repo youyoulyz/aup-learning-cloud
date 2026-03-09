@@ -110,7 +110,28 @@ jobs:
           OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           echo "registry=ghcr.io/${OWNER}" >> "$GITHUB_OUTPUT"
 
+      - name: Check if bundle already exists in release
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.tag.outputs.value }}"
+          GPU="${{ matrix.gpu_type }}"
+          if gh release view "${TAG}" &>/dev/null; then
+            # Check if a bundle for this GPU type is already attached
+            if gh release view "${TAG}" --json assets --jq '.assets[].name' 2>/dev/null \
+                | grep -q "auplc-bundle.*${GPU}"; then
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              echo "Bundle for ${GPU} already exists in release ${TAG}, skipping."
+            else
+              echo "skip=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Run pack command
+        if: steps.check.outputs.skip != 'true'
         env:
           GPU_TYPE: ${{ matrix.gpu_type }}
           IMAGE_REGISTRY: ${{ steps.tag.outputs.registry }}
@@ -118,11 +139,14 @@ jobs:
         run: ./auplc-installer pack
 
       - name: Verify bundle
+        if: steps.check.outputs.skip != 'true'
         run: |
           BUNDLE=$(ls auplc-bundle-*.tar.gz)
           echo "Bundle: ${BUNDLE}"
           echo "Size: $(du -sh "${BUNDLE}" | cut -f1)"
+
       - name: Upload bundle as artifact
+        if: steps.check.outputs.skip != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: auplc-bundle-${{ matrix.gpu_type }}
@@ -131,6 +155,7 @@ jobs:
           compression-level: 0  # already compressed
 
       - name: Attach bundle to GitHub Release
+        if: steps.check.outputs.skip != 'true'
         continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
