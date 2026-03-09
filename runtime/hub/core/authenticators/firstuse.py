@@ -26,8 +26,9 @@ Uses SQLAlchemy to store passwords in the shared JupyterHub database.
 
 from __future__ import annotations
 
-import bcrypt
 from concurrent.futures import ThreadPoolExecutor
+
+import bcrypt
 from firstuseauthenticator import FirstUseAuthenticator
 
 from core.authenticators.models import UserPassword
@@ -130,11 +131,13 @@ class CustomFirstUseAuthenticator(FirstUseAuthenticator):
             password = entry["password"]
             if not password or len(password) < min_len:
                 results["failed"] += 1
-                results["results"].append({
-                    "username": username,
-                    "status": "failed",
-                    "error": f"Password too short (min {min_len})",
-                })
+                results["results"].append(
+                    {
+                        "username": username,
+                        "status": "failed",
+                        "error": f"Password too short (min {min_len})",
+                    }
+                )
                 continue
             valid_entries.append((username, password))
 
@@ -165,11 +168,13 @@ class CustomFirstUseAuthenticator(FirstUseAuthenticator):
                     results["results"].append({"username": username, "status": "success"})
                 except Exception as e:
                     results["failed"] += 1
-                    results["results"].append({
-                        "username": username,
-                        "status": "failed",
-                        "error": str(e),
-                    })
+                    results["results"].append(
+                        {
+                            "username": username,
+                            "status": "failed",
+                            "error": str(e),
+                        }
+                    )
 
         return results
 

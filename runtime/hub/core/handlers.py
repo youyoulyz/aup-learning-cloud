@@ -416,7 +416,9 @@ class AdminAPIBatchSetPasswordHandler(APIHandler):
                 if entry.get("username", "").startswith("github:"):
                     self.set_status(400)
                     self.set_header("Content-Type", "application/json")
-                    return self.finish(json.dumps({"error": f"Cannot set password for GitHub user: {entry['username']}"}))
+                    return self.finish(
+                        json.dumps({"error": f"Cannot set password for GitHub user: {entry['username']}"})
+                    )
 
             firstuse_auth = None
             if isinstance(self.authenticator, MultiAuthenticator):
@@ -618,7 +620,9 @@ class QuotaBatchAPIHandler(APIHandler):
                     results["details"].append({"username": user.username, "status": "success", "unlimited": True})
                 except Exception:
                     results["failed"] += 1
-                    results["details"].append({"username": user.username, "status": "failed", "error": "Processing error"})
+                    results["details"].append(
+                        {"username": user.username, "status": "failed", "error": "Processing error"}
+                    )
 
             # Handle unset-unlimited users
             for user in unset_unlimited_users:
@@ -627,7 +631,9 @@ class QuotaBatchAPIHandler(APIHandler):
                     results["success"] += 1
                 except Exception:
                     results["failed"] += 1
-                    results["details"].append({"username": user.username, "status": "failed", "error": "Processing error"})
+                    results["details"].append(
+                        {"username": user.username, "status": "failed", "error": "Processing error"}
+                    )
 
             # Batch set balance for regular users + unset-unlimited users in single transaction
             batch_users = [(u.username, u.amount) for u in regular_users + unset_unlimited_users]
