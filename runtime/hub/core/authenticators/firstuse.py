@@ -149,21 +149,22 @@ class CustomFirstUseAuthenticator(FirstUseAuthenticator):
             hash_results = list(pool.map(_hash, [pw for _, pw in valid_entries]))
         hashed = [(username, h) for (username, _), h in zip(valid_entries, hash_results)]
 
-        # Single DB transaction for all password updates
+        # Single DB transaction with per-user savepoints
         with session_scope() as session:
             for username, password_hash in hashed:
                 try:
-                    user_pw = session.query(UserPassword).filter_by(username=username).first()
-                    if user_pw:
-                        user_pw.password_hash = password_hash
-                        user_pw.force_change = force_change
-                    else:
-                        user_pw = UserPassword(
-                            username=username,
-                            password_hash=password_hash,
-                            force_change=force_change,
-                        )
-                        session.add(user_pw)
+                    with session.begin_nested():
+                        user_pw = session.query(UserPassword).filter_by(username=username).first()
+                        if user_pw:
+                            user_pw.password_hash = password_hash
+                            user_pw.force_change = force_change
+                        else:
+                            user_pw = UserPassword(
+                                username=username,
+                                password_hash=password_hash,
+                                force_change=force_change,
+                            )
+                            session.add(user_pw)
                     results["success"] += 1
                     results["results"].append({"username": username, "status": "success"})
                 except Exception as e:

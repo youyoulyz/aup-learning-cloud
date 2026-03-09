@@ -134,48 +134,51 @@ export function CreateUserModal({ show, onHide, onSuccess, quotaEnabled = false,
         }
       }
 
-      // Step 2: Set passwords (for all users - both new and existing)
-      const passwordEntries = names.map(username => ({
-        username,
-        password: passwordMap.get(username)!,
-      }));
+      // Step 2: Set passwords (only for newly created users)
+      if (createdNames.length > 0) {
+        const passwordEntries = createdNames.map(username => ({
+          username,
+          password: passwordMap.get(username)!,
+        }));
 
-      try {
-        const pwResult = await api.batchSetPasswords(passwordEntries, forceChange);
-        for (const r of pwResult.results) {
-          const entry = results.get(r.username);
-          if (entry) {
-            if (r.status === 'success') {
-              entry.passwordSet = true;
-            } else {
-              entry.error = r.error || 'Password set failed';
+        try {
+          const pwResult = await api.batchSetPasswords(passwordEntries, forceChange);
+          for (const r of pwResult.results) {
+            const entry = results.get(r.username);
+            if (entry) {
+              if (r.status === 'success') {
+                entry.passwordSet = true;
+              } else {
+                entry.error = r.error || 'Password set failed';
+              }
             }
           }
+          if (pwResult.failed > 0) {
+            warnings.push(`${pwResult.failed} password(s) failed to set`);
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : 'Unknown error';
+          warnings.push(`Password setting failed: ${msg}`);
         }
-        if (pwResult.failed > 0) {
-          warnings.push(`${pwResult.failed} password(s) failed to set`);
-        }
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Unknown error';
-        warnings.push(`Password setting failed: ${msg}`);
       }
 
-      // Step 3: Set quota if enabled
-      if (quotaEnabled) {
+      // Step 3: Set quota if enabled (only for newly created users)
+      if (quotaEnabled && createdNames.length > 0) {
         const input = quotaValue.trim();
         const isUnlimited = input === '-1' || input === '∞' || input.toLowerCase() === 'unlimited';
         const amount = isUnlimited ? 0 : (parseInt(input) || 0);
         if (isUnlimited || amount > 0) {
           try {
             await api.batchSetQuota(
-              names.map(username => ({
+              createdNames.map(username => ({
                 username,
                 amount,
                 ...(isUnlimited ? { unlimited: true } : {}),
               }))
             );
-            for (const entry of results.values()) {
-              entry.quotaSet = true;
+            for (const name of createdNames) {
+              const entry = results.get(name);
+              if (entry) entry.quotaSet = true;
             }
           } catch (err) {
             const msg = err instanceof Error ? err.message : 'Unknown error';
@@ -387,24 +390,29 @@ export function CreateUserModal({ show, onHide, onSuccess, quotaEnabled = false,
         ) : (
           <div>
             {(() => {
-              const newCount = createdUsers.filter(u => u.status === 'created').length;
-              const existedCount = createdUsers.filter(u => u.status === 'existed').length;
-              const failedPw = createdUsers.filter(u => !u.passwordSet).length;
+              const newUsers = createdUsers.filter(u => u.status === 'created');
+              const existedUsers = createdUsers.filter(u => u.status === 'existed');
+              const failedPw = newUsers.filter(u => !u.passwordSet).length;
               return (
                 <>
-                  {newCount > 0 && (
+                  {newUsers.length > 0 && (
                     <Alert variant="success" className="py-2">
-                      {newCount} user(s) created successfully.
+                      {newUsers.length} user(s) created successfully.
                     </Alert>
                   )}
-                  {existedCount > 0 && (
+                  {existedUsers.length > 0 && (
                     <Alert variant="warning" className="py-2">
-                      {existedCount} user(s) already existed (passwords updated).
+                      {existedUsers.length} user(s) already existed and were skipped (no changes made).
                     </Alert>
                   )}
                   {failedPw > 0 && (
                     <Alert variant="danger" className="py-2">
-                      {failedPw} user(s) failed to set password.
+                      {failedPw} newly created user(s) failed to set password.
+                    </Alert>
+                  )}
+                  {newUsers.length === 0 && existedUsers.length > 0 && (
+                    <Alert variant="info" className="py-2">
+                      No new users were created. All usernames already exist in the system.
                     </Alert>
                   )}
                 </>
@@ -433,17 +441,26 @@ export function CreateUserModal({ show, onHide, onSuccess, quotaEnabled = false,
                   {createdUsers.map((user) => (
                     <tr key={user.username}>
                       <td><code>{user.username}</code></td>
-                      <td><code>{user.passwordSet ? user.password : '(failed)'}</code></td>
+                      <td>
+                        {user.passwordSet ? (
+                          <code>{user.password}</code>
+                        ) : user.status === 'existed' ? (
+                          <span className="text-muted">-</span>
+                        ) : (
+                          <span className="text-danger">(failed)</span>
+                        )}
+                      </td>
                       <td>
                         {user.status === 'created' ? (
-                          <Badge bg="success">New</Badge>
+                          user.passwordSet ? (
+                            <Badge bg="success">New</Badge>
+                          ) : (
+                            <Badge bg="danger">PW failed</Badge>
+                          )
                         ) : user.status === 'existed' ? (
-                          <Badge bg="warning">Existed</Badge>
+                          <Badge bg="secondary">Skipped</Badge>
                         ) : (
                           <Badge bg="danger">Failed</Badge>
-                        )}
-                        {!user.passwordSet && (
-                          <Badge bg="danger" className="ms-1" title={user.error}>PW fail</Badge>
                         )}
                       </td>
                     </tr>

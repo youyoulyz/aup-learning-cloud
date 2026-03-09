@@ -476,31 +476,32 @@ class QuotaManager:
             session.close()
 
     def batch_set_quota(self, users: list[tuple[str, int]], admin: str | None = None) -> dict:
-        """Set quota for multiple users in a single transaction."""
+        """Set quota for multiple users in a single transaction with per-user savepoints."""
         results = {"success": 0, "failed": 0, "details": []}
         with self._op_lock, session_scope() as session:
             for username, amount in users:
                 try:
-                    uname = username.lower()
-                    user = session.query(UserQuota).filter(UserQuota.username == uname).first()
-                    if not user:
-                        user = UserQuota(username=uname, balance=amount)
-                        session.add(user)
-                        balance_before = 0
-                    else:
-                        balance_before = user.balance
-                        user.balance = amount
+                    with session.begin_nested():
+                        uname = username.lower()
+                        user = session.query(UserQuota).filter(UserQuota.username == uname).first()
+                        if not user:
+                            user = UserQuota(username=uname, balance=amount)
+                            session.add(user)
+                            balance_before = 0
+                        else:
+                            balance_before = user.balance
+                            user.balance = amount
 
-                    transaction = QuotaTransaction(
-                        username=uname,
-                        amount=amount - balance_before,
-                        transaction_type="set",
-                        balance_before=balance_before,
-                        balance_after=amount,
-                        description=f"Balance set to {amount}",
-                        created_by=admin,
-                    )
-                    session.add(transaction)
+                        transaction = QuotaTransaction(
+                            username=uname,
+                            amount=amount - balance_before,
+                            transaction_type="set",
+                            balance_before=balance_before,
+                            balance_after=amount,
+                            description=f"Balance set to {amount}",
+                            created_by=admin,
+                        )
+                        session.add(transaction)
                     results["success"] += 1
                     results["details"].append({"username": uname, "status": "success", "balance": amount})
                 except Exception as e:

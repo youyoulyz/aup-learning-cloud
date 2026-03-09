@@ -25,6 +25,7 @@ import * as api from '@auplc/shared';
 import { isGitHubUser, isNativeUser as isNativeUsername } from '@auplc/shared';
 import { CreateUserModal } from '../components/CreateUserModal';
 import { SetPasswordModal } from '../components/SetPasswordModal';
+import { BatchPasswordModal } from '../components/BatchPasswordModal';
 import { EditUserModal } from '../components/EditUserModal';
 import { ConfirmModal } from '../components/ConfirmModal';
 
@@ -79,6 +80,7 @@ const SortIcon = memo(function SortIcon({ column, sortColumn, sortDirection }: {
 // Memoized UserRow component to prevent unnecessary re-renders
 interface UserRowProps {
   user: User;
+  currentUser: string;
   quotaEnabled: boolean;
   quotaMap: Map<string, UserQuota>;
   selectedUsers: Set<string>;
@@ -102,6 +104,7 @@ interface UserRowProps {
 
 const UserRow = memo(function UserRow({
   user,
+  currentUser,
   quotaEnabled,
   quotaMap,
   selectedUsers,
@@ -126,6 +129,8 @@ const UserRow = memo(function UserRow({
   const isSelected = selectedUsers.has(user.name);
   const quota = quotaMap.get(user.name);
   const isEditingThisQuota = editingQuota === user.name;
+  // Protect admin users and the currently logged-in user from deletion
+  const isProtected = user.admin || user.name === currentUser;
 
   return (
     <React.Fragment>
@@ -252,7 +257,7 @@ const UserRow = memo(function UserRow({
               Edit User
             </Button>
 
-            {isNativeUser(user) && user.name !== 'admin' && (
+            {isNativeUser(user) && (
               <Button
                 variant="light"
                 onClick={() => onPasswordReset(user)}
@@ -261,7 +266,7 @@ const UserRow = memo(function UserRow({
                 <i className="bi bi-key"></i> Reset PW
               </Button>
             )}
-            {user.name !== 'admin' && (
+            {!isProtected && (
               <Button
                 variant="outline-danger"
                 onClick={() => onDeleteUser(user)}
@@ -387,9 +392,27 @@ export function UserList() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [showBatchDeleteModal, setShowBatchDeleteModal] = useState(false);
+  const [showBatchPasswordModal, setShowBatchPasswordModal] = useState(false);
 
   const jhdata = window.jhdata ?? {};
   const baseUrl = jhdata.base_url ?? '/hub/';
+  const currentUser = jhdata.user ?? '';
+
+  // Compute deletable users from selection (exclude admin and current user)
+  const deletableSelected = useMemo(() => {
+    return Array.from(selectedUsers).filter(username => {
+      const user = users.find(u => u.name === username);
+      return user && !user.admin && username !== currentUser;
+    });
+  }, [selectedUsers, users, currentUser]);
+
+  // Compute native (non-GitHub) users from selection for password reset
+  const nativeSelected = useMemo(() => {
+    return Array.from(selectedUsers).filter(username => {
+      const user = users.find(u => u.name === username);
+      return user && isNativeUsername(user.name);
+    });
+  }, [selectedUsers, users]);
 
   // Debounce search input
   useEffect(() => {
@@ -685,6 +708,12 @@ export function UserList() {
 
   const handleDeleteUser = async () => {
     if (!userToDelete) return;
+    if (userToDelete.admin || userToDelete.name === currentUser) {
+      setError('Cannot delete admin users or yourself');
+      setShowDeleteModal(false);
+      setUserToDelete(null);
+      return;
+    }
     try {
       setActionLoading(`delete-${userToDelete.name}`);
       await api.deleteUser(userToDelete.name);
@@ -699,11 +728,11 @@ export function UserList() {
   };
 
   const handleBatchDelete = async () => {
-    if (selectedUsers.size === 0) return;
+    if (deletableSelected.length === 0) return;
     try {
       setActionLoading('batch-delete');
       await Promise.all(
-        Array.from(selectedUsers).map(username => api.deleteUser(username))
+        deletableSelected.map(username => api.deleteUser(username))
       );
       setShowBatchDeleteModal(false);
       setSelectedUsers(new Set());
@@ -768,12 +797,20 @@ export function UserList() {
             </Button>
           )}
           <Button
+            variant="secondary"
+            onClick={() => setShowBatchPasswordModal(true)}
+            disabled={nativeSelected.length === 0}
+            title={nativeSelected.length === 0 ? 'Select native users first' : `Reset passwords for ${nativeSelected.length} users`}
+          >
+            Reset PW ({nativeSelected.length})
+          </Button>
+          <Button
             variant="outline-danger"
             onClick={() => setShowBatchDeleteModal(true)}
-            disabled={selectedUsers.size === 0}
-            title={selectedUsers.size === 0 ? 'Select users first' : `Delete ${selectedUsers.size} users`}
+            disabled={deletableSelected.length === 0}
+            title={deletableSelected.length === 0 ? 'Select users first' : `Delete ${deletableSelected.length} users`}
           >
-            Delete ({selectedUsers.size})
+            Delete ({deletableSelected.length})
           </Button>
           <Button
             variant="danger"
@@ -871,6 +908,7 @@ export function UserList() {
             <UserRow
               key={user.name}
               user={user}
+              currentUser={currentUser}
               quotaEnabled={quotaEnabled}
               quotaMap={quotaMap}
               selectedUsers={selectedUsers}
@@ -1030,12 +1068,19 @@ export function UserList() {
         loading={actionLoading === `delete-${userToDelete?.name}`}
       />
 
+      {/* Batch Password Reset Modal */}
+      <BatchPasswordModal
+        show={showBatchPasswordModal}
+        usernames={nativeSelected}
+        onHide={() => setShowBatchPasswordModal(false)}
+      />
+
       {/* Batch Delete Confirmation Modal */}
       <ConfirmModal
         show={showBatchDeleteModal}
         title="Delete Selected Users"
-        message={`Are you sure you want to delete ${selectedUsers.size} selected user(s)? This action cannot be undone.\n\nUsers: ${Array.from(selectedUsers).slice(0, 10).join(', ')}${selectedUsers.size > 10 ? `, ...and ${selectedUsers.size - 10} more` : ''}`}
-        confirmText={`Delete ${selectedUsers.size} Users`}
+        message={`Are you sure you want to delete ${deletableSelected.length} user(s)? This action cannot be undone.\n\nUsers: ${deletableSelected.slice(0, 10).join(', ')}${deletableSelected.length > 10 ? `, ...and ${deletableSelected.length - 10} more` : ''}`}
+        confirmText={`Delete ${deletableSelected.length} Users`}
         confirmVariant="danger"
         onConfirm={handleBatchDelete}
         onCancel={() => setShowBatchDeleteModal(false)}
