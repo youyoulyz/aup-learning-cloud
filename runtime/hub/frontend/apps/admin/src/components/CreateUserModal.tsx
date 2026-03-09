@@ -17,8 +17,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { useState, useCallback } from 'react';
-import { Modal, Button, Form, Alert, Spinner, InputGroup, Row, Col } from 'react-bootstrap';
+import { useState, useCallback, useMemo } from 'react';
+import { Modal, Button, Form, Alert, Spinner, InputGroup, Row, Col, Badge } from 'react-bootstrap';
 import * as api from '@auplc/shared';
 
 interface Props {
@@ -32,6 +32,10 @@ interface Props {
 interface CreatedUser {
   username: string;
   password: string;
+  status: 'created' | 'existed' | 'failed';
+  passwordSet: boolean;
+  quotaSet: boolean;
+  error?: string;
 }
 
 export function CreateUserModal({ show, onHide, onSuccess, quotaEnabled = false, defaultQuota = 0 }: Props) {
@@ -76,38 +80,116 @@ export function CreateUserModal({ show, onHide, onSuccess, quotaEnabled = false,
         .filter(n => n.length > 0);
 
       if (names.length === 0) {
-        throw new Error('Please enter at least one username');
+        setError('Please enter at least one username');
+        setLoading(false);
+        return;
       }
 
       // Generate passwords for all users upfront
-      const userPasswords = names.map(username => ({
+      const passwordMap = new Map(
+        names.map(username => [
+          username,
+          generateRandom ? generateRandomPassword() : password,
+        ])
+      );
+
+      // Initialize result tracking
+      const results: Map<string, CreatedUser> = new Map(
+        names.map(username => [
+          username,
+          { username, password: passwordMap.get(username)!, status: 'created' as const, passwordSet: false, quotaSet: false },
+        ])
+      );
+
+      const warnings: string[] = [];
+
+      // Step 1: Batch create users
+      let createdNames: string[] = [];
+      try {
+        const created = await api.createUsers(names, isAdmin);
+        // API returns only newly created users; existing ones are silently skipped
+        createdNames = created.map(u => u.name);
+        const existedNames = names.filter(n => !createdNames.includes(n));
+        for (const name of existedNames) {
+          const r = results.get(name)!;
+          r.status = 'existed';
+        }
+        if (existedNames.length > 0) {
+          warnings.push(`${existedNames.length} user(s) already existed: ${existedNames.join(', ')}`);
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unknown error';
+        // If 409 (all users exist), mark them all as existed and continue with password/quota
+        if (msg.includes('already exist')) {
+          for (const name of names) {
+            results.get(name)!.status = 'existed';
+          }
+          createdNames = [];
+          warnings.push(`All ${names.length} user(s) already existed`);
+        } else {
+          // Fatal error - can't determine which users were created
+          setError(`Failed to create users: ${msg}`);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Step 2: Set passwords (for all users - both new and existing)
+      const passwordEntries = names.map(username => ({
         username,
-        password: generateRandom ? generateRandomPassword() : password,
+        password: passwordMap.get(username)!,
       }));
 
-      // Batch create all users in a single API call
-      await api.createUsers(names, isAdmin);
+      try {
+        const pwResult = await api.batchSetPasswords(passwordEntries, forceChange);
+        for (const r of pwResult.results) {
+          const entry = results.get(r.username);
+          if (entry) {
+            if (r.status === 'success') {
+              entry.passwordSet = true;
+            } else {
+              entry.error = r.error || 'Password set failed';
+            }
+          }
+        }
+        if (pwResult.failed > 0) {
+          warnings.push(`${pwResult.failed} password(s) failed to set`);
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unknown error';
+        warnings.push(`Password setting failed: ${msg}`);
+      }
 
-      // Batch set all passwords in a single API call
-      await api.batchSetPasswords(userPasswords, forceChange);
-
-      // Set initial quota if enabled and value is meaningful
+      // Step 3: Set quota if enabled
       if (quotaEnabled) {
         const input = quotaValue.trim();
         const isUnlimited = input === '-1' || input === '∞' || input.toLowerCase() === 'unlimited';
         const amount = isUnlimited ? 0 : (parseInt(input) || 0);
         if (isUnlimited || amount > 0) {
-          await api.batchSetQuota(
-            names.map(username => ({
-              username,
-              amount,
-              ...(isUnlimited ? { unlimited: true } : {}),
-            }))
-          );
+          try {
+            await api.batchSetQuota(
+              names.map(username => ({
+                username,
+                amount,
+                ...(isUnlimited ? { unlimited: true } : {}),
+              }))
+            );
+            for (const entry of results.values()) {
+              entry.quotaSet = true;
+            }
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : 'Unknown error';
+            warnings.push(`Quota setting failed: ${msg}`);
+          }
         }
       }
 
-      setCreatedUsers(userPasswords);
+      // Set warnings as non-fatal error for display
+      if (warnings.length > 0) {
+        setError(warnings.join('\n'));
+      }
+
+      setCreatedUsers(Array.from(results.values()));
       setStep('result');
       onSuccess();
     } catch (err) {
@@ -133,17 +215,22 @@ export function CreateUserModal({ show, onHide, onSuccess, quotaEnabled = false,
     onHide();
   };
 
+  const usersWithPasswords = useMemo(
+    () => createdUsers.filter(u => u.passwordSet),
+    [createdUsers]
+  );
+
   const copyToClipboard = () => {
-    const text = createdUsers
+    const text = usersWithPasswords
       .map(u => `${u.username}\t${u.password}`)
       .join('\n');
     navigator.clipboard.writeText(text);
   };
 
   const downloadCsv = () => {
-    const header = 'username,password\n';
+    const header = 'username,password,status\n';
     const rows = createdUsers
-      .map(u => `${u.username},${u.password}`)
+      .map(u => `${u.username},${u.passwordSet ? u.password : ''},${u.status}`)
       .join('\n');
     const blob = new Blob([header + rows], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -158,7 +245,7 @@ export function CreateUserModal({ show, onHide, onSuccess, quotaEnabled = false,
     <Modal show={show} onHide={handleClose} size="lg">
       <Modal.Header closeButton>
         <Modal.Title>
-          {step === 'input' ? 'Create Users' : 'Users Created'}
+          {step === 'input' ? 'Create Users' : 'Results'}
         </Modal.Title>
       </Modal.Header>
       <Modal.Body>
@@ -299,9 +386,37 @@ export function CreateUserModal({ show, onHide, onSuccess, quotaEnabled = false,
           </Form>
         ) : (
           <div>
-            <Alert variant="success">
-              Successfully created {createdUsers.length} user(s)!
-            </Alert>
+            {(() => {
+              const newCount = createdUsers.filter(u => u.status === 'created').length;
+              const existedCount = createdUsers.filter(u => u.status === 'existed').length;
+              const failedPw = createdUsers.filter(u => !u.passwordSet).length;
+              return (
+                <>
+                  {newCount > 0 && (
+                    <Alert variant="success" className="py-2">
+                      {newCount} user(s) created successfully.
+                    </Alert>
+                  )}
+                  {existedCount > 0 && (
+                    <Alert variant="warning" className="py-2">
+                      {existedCount} user(s) already existed (passwords updated).
+                    </Alert>
+                  )}
+                  {failedPw > 0 && (
+                    <Alert variant="danger" className="py-2">
+                      {failedPw} user(s) failed to set password.
+                    </Alert>
+                  )}
+                </>
+              );
+            })()}
+            {error && (
+              <Alert variant="warning" className="py-2">
+                <small>{error.split('\n').map((line, i) => (
+                  <div key={i}>{line}</div>
+                ))}</small>
+              </Alert>
+            )}
             <p className="text-muted">
               Copy the credentials below and share them with the users:
             </p>
@@ -311,13 +426,26 @@ export function CreateUserModal({ show, onHide, onSuccess, quotaEnabled = false,
                   <tr>
                     <th>Username</th>
                     <th>Password</th>
+                    <th style={{ width: '120px' }}>Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {createdUsers.map((user) => (
                     <tr key={user.username}>
                       <td><code>{user.username}</code></td>
-                      <td><code>{user.password}</code></td>
+                      <td><code>{user.passwordSet ? user.password : '(failed)'}</code></td>
+                      <td>
+                        {user.status === 'created' ? (
+                          <Badge bg="success">New</Badge>
+                        ) : user.status === 'existed' ? (
+                          <Badge bg="warning">Existed</Badge>
+                        ) : (
+                          <Badge bg="danger">Failed</Badge>
+                        )}
+                        {!user.passwordSet && (
+                          <Badge bg="danger" className="ms-1" title={user.error}>PW fail</Badge>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
