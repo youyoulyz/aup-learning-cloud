@@ -58,6 +58,7 @@ _handler_config: dict[str, Any] = {
     "quota_rates": {},
     "quota_enabled": False,
     "minimum_quota_to_start": 10,
+    "default_quota": 0,
 }
 
 
@@ -66,6 +67,7 @@ def configure_handlers(
     quota_rates: dict[str, int] | None = None,
     quota_enabled: bool = False,
     minimum_quota_to_start: int = 10,
+    default_quota: int = 0,
 ) -> None:
     """Configure handler module with runtime settings."""
     if accelerator_options is not None:
@@ -74,6 +76,7 @@ def configure_handlers(
         _handler_config["quota_rates"] = quota_rates
     _handler_config["quota_enabled"] = quota_enabled
     _handler_config["minimum_quota_to_start"] = minimum_quota_to_start
+    _handler_config["default_quota"] = default_quota
 
 
 # =============================================================================
@@ -377,6 +380,75 @@ class AdminAPIGeneratePasswordHandler(APIHandler):
         self.finish(json.dumps({"password": password}))
 
 
+class AdminAPIBatchSetPasswordHandler(APIHandler):
+    """API endpoint for batch setting user passwords."""
+
+    @web.authenticated
+    async def post(self):
+        """Set passwords for multiple users in a single request."""
+        assert self.current_user is not None
+        if not self.current_user.admin:
+            self.set_status(403)
+            self.set_header("Content-Type", "application/json")
+            return self.finish(json.dumps({"error": "Admin access required"}))
+
+        try:
+            data = json.loads(self.request.body.decode("utf-8"))
+            users = data.get("users", [])
+            force_change = data.get("force_change", True)
+
+            if not users or not isinstance(users, list):
+                self.set_status(400)
+                self.set_header("Content-Type", "application/json")
+                return self.finish(json.dumps({"error": "users array is required"}))
+
+            if len(users) > 1000:
+                self.set_status(400)
+                self.set_header("Content-Type", "application/json")
+                return self.finish(json.dumps({"error": "Maximum 1000 users per batch"}))
+
+            # Validate entries
+            for entry in users:
+                if not isinstance(entry, dict) or "username" not in entry or "password" not in entry:
+                    self.set_status(400)
+                    self.set_header("Content-Type", "application/json")
+                    return self.finish(json.dumps({"error": "Each entry must have username and password"}))
+                if entry.get("username", "").startswith("github:"):
+                    self.set_status(400)
+                    self.set_header("Content-Type", "application/json")
+                    return self.finish(json.dumps({"error": f"Cannot set password for GitHub user: {entry['username']}"}))
+
+            firstuse_auth = None
+            if isinstance(self.authenticator, MultiAuthenticator):
+                for authenticator in self.authenticator._authenticators:
+                    if isinstance(authenticator, CustomFirstUseAuthenticator):
+                        firstuse_auth = authenticator
+                        break
+
+            if not firstuse_auth:
+                self.set_status(500)
+                self.set_header("Content-Type", "application/json")
+                return self.finish(json.dumps({"error": "Password management not available"}))
+
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(
+                None, lambda: firstuse_auth.batch_set_passwords(users, force_change=force_change)
+            )
+
+            self.set_header("Content-Type", "application/json")
+            self.finish(json.dumps(result))
+
+        except json.JSONDecodeError:
+            self.set_status(400)
+            self.set_header("Content-Type", "application/json")
+            self.finish(json.dumps({"error": "Invalid JSON"}))
+        except Exception as e:
+            self.log.error(f"Failed to batch set passwords: {e}")
+            self.set_status(500)
+            self.set_header("Content-Type", "application/json")
+            self.finish(json.dumps({"error": "Internal server error"}))
+
+
 # =============================================================================
 # Quota Management Handlers
 # =============================================================================
@@ -531,18 +603,39 @@ class QuotaBatchAPIHandler(APIHandler):
             quota_manager = get_quota_manager()
             admin_name = self.current_user.name
 
+            # Separate unlimited and regular users
+            unlimited_users = [u for u in req.users if u.unlimited is True]
+            unset_unlimited_users = [u for u in req.users if u.unlimited is False]
+            regular_users = [u for u in req.users if u.unlimited is None]
+
             results = {"success": 0, "failed": 0, "details": []}
 
-            for user in req.users:
+            # Handle unlimited users
+            for user in unlimited_users:
                 try:
-                    quota_manager.set_balance(user.username, user.amount, admin_name)
+                    quota_manager.set_unlimited(user.username, True, admin_name)
                     results["success"] += 1
-                    results["details"].append({"username": user.username, "status": "success", "balance": user.amount})
+                    results["details"].append({"username": user.username, "status": "success", "unlimited": True})
                 except Exception:
                     results["failed"] += 1
-                    results["details"].append(
-                        {"username": user.username, "status": "failed", "error": "Processing error"}
-                    )
+                    results["details"].append({"username": user.username, "status": "failed", "error": "Processing error"})
+
+            # Handle unset-unlimited users
+            for user in unset_unlimited_users:
+                try:
+                    quota_manager.set_unlimited(user.username, False, admin_name)
+                    results["success"] += 1
+                except Exception:
+                    results["failed"] += 1
+                    results["details"].append({"username": user.username, "status": "failed", "error": "Processing error"})
+
+            # Batch set balance for regular users + unset-unlimited users in single transaction
+            batch_users = [(u.username, u.amount) for u in regular_users + unset_unlimited_users]
+            if batch_users:
+                batch_result = quota_manager.batch_set_quota(batch_users, admin_name)
+                results["success"] += batch_result["success"]
+                results["failed"] += batch_result["failed"]
+                results["details"].extend(batch_result.get("details", []))
 
             self.set_header("Content-Type", "application/json")
             self.finish(json.dumps(results))
@@ -641,6 +734,7 @@ class QuotaRatesAPIHandler(APIHandler):
                     "enabled": _handler_config["quota_enabled"],
                     "rates": _handler_config["quota_rates"],
                     "minimum_to_start": _handler_config["minimum_quota_to_start"],
+                    "default_quota": _handler_config["default_quota"],
                 }
             )
         )
@@ -1079,6 +1173,7 @@ def get_handlers() -> list[tuple[str, type]]:
         (r"/admin/users", AdminUIHandler),
         (r"/admin/groups", AdminUIHandler),
         (r"/admin/api/set-password", AdminAPISetPasswordHandler),
+        (r"/admin/api/batch-set-password", AdminAPIBatchSetPasswordHandler),
         (r"/admin/api/generate-password", AdminAPIGeneratePasswordHandler),
         # Accelerator info API
         (r"/api/accelerators", AcceleratorsAPIHandler),

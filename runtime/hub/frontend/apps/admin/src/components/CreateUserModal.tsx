@@ -17,14 +17,16 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { useState } from 'react';
-import { Modal, Button, Form, Alert, Spinner, InputGroup } from 'react-bootstrap';
+import { useState, useCallback } from 'react';
+import { Modal, Button, Form, Alert, Spinner, InputGroup, Row, Col } from 'react-bootstrap';
 import * as api from '@auplc/shared';
 
 interface Props {
   show: boolean;
   onHide: () => void;
   onSuccess: () => void;
+  quotaEnabled?: boolean;
+  defaultQuota?: number;
 }
 
 interface CreatedUser {
@@ -32,7 +34,7 @@ interface CreatedUser {
   password: string;
 }
 
-export function CreateUserModal({ show, onHide, onSuccess }: Props) {
+export function CreateUserModal({ show, onHide, onSuccess, quotaEnabled = false, defaultQuota = 0 }: Props) {
   const [usernames, setUsernames] = useState('');
   const [password, setPassword] = useState('');
   const [generateRandom, setGenerateRandom] = useState(true);
@@ -42,6 +44,16 @@ export function CreateUserModal({ show, onHide, onSuccess }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [createdUsers, setCreatedUsers] = useState<CreatedUser[]>([]);
   const [step, setStep] = useState<'input' | 'result'>('input');
+  const [prefix, setPrefix] = useState('');
+  const [count, setCount] = useState(10);
+  const [startNum, setStartNum] = useState(1);
+  const [quotaValue, setQuotaValue] = useState(String(defaultQuota || 0));
+
+  const handleGenerateNames = useCallback(() => {
+    if (!prefix.trim()) return;
+    const names = Array.from({ length: count }, (_, i) => `${prefix.trim()}${startNum + i}`);
+    setUsernames(names.join('\n'));
+  }, [prefix, count, startNum]);
 
   const generateRandomPassword = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
@@ -67,24 +79,35 @@ export function CreateUserModal({ show, onHide, onSuccess }: Props) {
         throw new Error('Please enter at least one username');
       }
 
-      const results: CreatedUser[] = [];
+      // Generate passwords for all users upfront
+      const userPasswords = names.map(username => ({
+        username,
+        password: generateRandom ? generateRandomPassword() : password,
+      }));
 
-      for (const username of names) {
-        // Create user
-        await api.createUser(username, isAdmin);
+      // Batch create all users in a single API call
+      await api.createUsers(names, isAdmin);
 
-        // Set password
-        const pwd = generateRandom ? generateRandomPassword() : password;
-        await api.setPassword({
-          username,
-          password: pwd,
-          force_change: forceChange,
-        });
+      // Batch set all passwords in a single API call
+      await api.batchSetPasswords(userPasswords, forceChange);
 
-        results.push({ username, password: pwd });
+      // Set initial quota if enabled and value is meaningful
+      if (quotaEnabled) {
+        const input = quotaValue.trim();
+        const isUnlimited = input === '-1' || input === '∞' || input.toLowerCase() === 'unlimited';
+        const amount = isUnlimited ? 0 : (parseInt(input) || 0);
+        if (isUnlimited || amount > 0) {
+          await api.batchSetQuota(
+            names.map(username => ({
+              username,
+              amount,
+              ...(isUnlimited ? { unlimited: true } : {}),
+            }))
+          );
+        }
       }
 
-      setCreatedUsers(results);
+      setCreatedUsers(userPasswords);
       setStep('result');
       onSuccess();
     } catch (err) {
@@ -103,6 +126,10 @@ export function CreateUserModal({ show, onHide, onSuccess }: Props) {
     setError(null);
     setCreatedUsers([]);
     setStep('input');
+    setPrefix('');
+    setCount(10);
+    setStartNum(1);
+    setQuotaValue(String(defaultQuota || 0));
     onHide();
   };
 
@@ -111,6 +138,20 @@ export function CreateUserModal({ show, onHide, onSuccess }: Props) {
       .map(u => `${u.username}\t${u.password}`)
       .join('\n');
     navigator.clipboard.writeText(text);
+  };
+
+  const downloadCsv = () => {
+    const header = 'username,password\n';
+    const rows = createdUsers
+      .map(u => `${u.username},${u.password}`)
+      .join('\n');
+    const blob = new Blob([header + rows], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `users-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -126,6 +167,57 @@ export function CreateUserModal({ show, onHide, onSuccess }: Props) {
             {error && <Alert variant="danger">{error}</Alert>}
 
             <Form.Group className="mb-3">
+              <Form.Label className="text-muted small mb-1">Quick generate</Form.Label>
+              <Row className="g-2 align-items-end">
+                <Col>
+                  <Form.Control
+                    size="sm"
+                    type="text"
+                    value={prefix}
+                    onChange={(e) => setPrefix(e.target.value)}
+                    placeholder="Prefix, e.g. student"
+                  />
+                </Col>
+                <Col xs="auto">
+                  <InputGroup size="sm">
+                    <InputGroup.Text>from</InputGroup.Text>
+                    <Form.Control
+                      type="number"
+                      min={0}
+                      max={9999}
+                      value={startNum}
+                      onChange={(e) => setStartNum(parseInt(e.target.value) || 1)}
+                      style={{ width: 70 }}
+                    />
+                  </InputGroup>
+                </Col>
+                <Col xs="auto">
+                  <InputGroup size="sm">
+                    <InputGroup.Text>count</InputGroup.Text>
+                    <Form.Control
+                      type="number"
+                      min={1}
+                      max={1000}
+                      value={count}
+                      onChange={(e) => setCount(parseInt(e.target.value) || 1)}
+                      style={{ width: 70 }}
+                    />
+                  </InputGroup>
+                </Col>
+                <Col xs="auto">
+                  <Button
+                    size="sm"
+                    variant="outline-primary"
+                    onClick={handleGenerateNames}
+                    disabled={!prefix.trim()}
+                  >
+                    Fill
+                  </Button>
+                </Col>
+              </Row>
+            </Form.Group>
+
+            <Form.Group className="mb-3">
               <Form.Label>Usernames (one per line)</Form.Label>
               <Form.Control
                 as="textarea"
@@ -136,6 +228,21 @@ export function CreateUserModal({ show, onHide, onSuccess }: Props) {
                 required
               />
             </Form.Group>
+
+            {quotaEnabled && (
+              <Form.Group className="mb-3">
+                <Form.Label>Initial Quota</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={quotaValue}
+                  onChange={(e) => setQuotaValue(e.target.value)}
+                  placeholder="e.g. 100, or -1 for unlimited"
+                />
+                <Form.Text className="text-muted">
+                  Leave as 0 to skip. Use -1 or &quot;unlimited&quot; for unlimited.
+                </Form.Text>
+              </Form.Group>
+            )}
 
             <Form.Group className="mb-3">
               <Form.Check
@@ -188,6 +295,7 @@ export function CreateUserModal({ show, onHide, onSuccess }: Props) {
                 onChange={(e) => setIsAdmin(e.target.checked)}
               />
             </Form.Group>
+
           </Form>
         ) : (
           <div>
@@ -246,8 +354,11 @@ export function CreateUserModal({ show, onHide, onSuccess }: Props) {
           </>
         ) : (
           <>
-            <Button variant="outline-dark" onClick={copyToClipboard}>
-              <i className="bi bi-clipboard me-1"></i> Copy to Clipboard
+            <Button variant="outline-primary" onClick={copyToClipboard}>
+              <i className="bi bi-clipboard me-1"></i> Copy
+            </Button>
+            <Button variant="outline-primary" onClick={downloadCsv}>
+              <i className="bi bi-download me-1"></i> CSV
             </Button>
             <Button variant="dark" onClick={handleClose}>
               Done

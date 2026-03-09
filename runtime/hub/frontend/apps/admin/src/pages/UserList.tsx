@@ -376,6 +376,7 @@ export function UserList() {
   const [itemsPerPage, setItemsPerPage] = useState(50);
   const [quotaMap, setQuotaMap] = useState<Map<string, UserQuota>>(new Map());
   const [quotaEnabled, setQuotaEnabled] = useState(false);
+  const [defaultQuota, setDefaultQuota] = useState(0);
   const [editingQuota, setEditingQuota] = useState<string | null>(null);
   const [quotaInput, setQuotaInput] = useState('');
   const [showBatchQuotaModal, setShowBatchQuotaModal] = useState(false);
@@ -385,6 +386,7 @@ export function UserList() {
   const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [showBatchDeleteModal, setShowBatchDeleteModal] = useState(false);
 
   const jhdata = window.jhdata ?? {};
   const baseUrl = jhdata.base_url ?? '/hub/';
@@ -438,13 +440,17 @@ export function UserList() {
 
   const loadQuota = useCallback(async () => {
     try {
-      const quotaData = await api.getAllQuota();
+      const [quotaData, rates] = await Promise.all([
+        api.getAllQuota(),
+        api.getQuotaRates(),
+      ]);
       const map = new Map<string, UserQuota>();
       for (const q of quotaData.users) {
         map.set(q.username, q);
       }
       setQuotaMap(map);
-      setQuotaEnabled(true);
+      setQuotaEnabled(rates.enabled);
+      setDefaultQuota(rates.default_quota ?? 0);
     } catch {
       // Quota system might be disabled
       setQuotaEnabled(false);
@@ -507,21 +513,29 @@ export function UserList() {
       const input = batchQuotaInput.trim();
       const isUnlimited = input === '-1' || input === '∞' || input.toLowerCase() === 'unlimited';
 
-      for (const username of selectedUsers) {
-        try {
-          if (isUnlimited) {
-            await api.setUserUnlimited(username, true);
-          } else {
-            const currentQuota = quotaMap.get(username);
-            if (currentQuota?.unlimited) {
-              await api.setUserUnlimited(username, false);
-            }
-            await api.setUserQuota(username, parseInt(input) || 0, 'set');
-          }
-        } catch (err) {
-          console.error(`Failed to set quota for ${username}:`, err);
+      const amount = isUnlimited ? 0 : (parseInt(input) || 0);
+      const batchUsers = Array.from(selectedUsers).map(username => {
+        const currentQuota = quotaMap.get(username);
+        return {
+          username,
+          amount,
+          unlimited: isUnlimited ? true : (currentQuota?.unlimited ? false : undefined),
+        };
+      });
+
+      // Filter out undefined unlimited values for clean request
+      const cleanUsers = batchUsers.map(u => {
+        const entry: { username: string; amount: number; unlimited?: boolean } = {
+          username: u.username,
+          amount: u.amount,
+        };
+        if (u.unlimited !== undefined) {
+          entry.unlimited = u.unlimited;
         }
-      }
+        return entry;
+      });
+
+      await api.batchSetQuota(cleanUsers);
 
       await loadQuota();
       setShowBatchQuotaModal(false);
@@ -684,6 +698,23 @@ export function UserList() {
     }
   };
 
+  const handleBatchDelete = async () => {
+    if (selectedUsers.size === 0) return;
+    try {
+      setActionLoading('batch-delete');
+      await Promise.all(
+        Array.from(selectedUsers).map(username => api.deleteUser(username))
+      );
+      setShowBatchDeleteModal(false);
+      setSelectedUsers(new Set());
+      await loadUsers(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to batch delete users');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   // Memoize start/stop server handlers with useCallback
   const handleStartServerCallback = useCallback((user: User) => {
     handleStartServer(user);
@@ -736,6 +767,14 @@ export function UserList() {
               Set Quota ({selectedUsers.size})
             </Button>
           )}
+          <Button
+            variant="outline-danger"
+            onClick={() => setShowBatchDeleteModal(true)}
+            disabled={selectedUsers.size === 0}
+            title={selectedUsers.size === 0 ? 'Select users first' : `Delete ${selectedUsers.size} users`}
+          >
+            Delete ({selectedUsers.size})
+          </Button>
           <Button
             variant="danger"
             onClick={handleShutdownHub}
@@ -905,7 +944,9 @@ export function UserList() {
       <CreateUserModal
         show={showCreateModal}
         onHide={() => setShowCreateModal(false)}
-        onSuccess={loadUsers}
+        onSuccess={() => { loadUsers(); loadQuota(); }}
+        quotaEnabled={quotaEnabled}
+        defaultQuota={defaultQuota}
       />
 
       <SetPasswordModal
@@ -987,6 +1028,18 @@ export function UserList() {
           setUserToDelete(null);
         }}
         loading={actionLoading === `delete-${userToDelete?.name}`}
+      />
+
+      {/* Batch Delete Confirmation Modal */}
+      <ConfirmModal
+        show={showBatchDeleteModal}
+        title="Delete Selected Users"
+        message={`Are you sure you want to delete ${selectedUsers.size} selected user(s)? This action cannot be undone.\n\nUsers: ${Array.from(selectedUsers).slice(0, 10).join(', ')}${selectedUsers.size > 10 ? `, ...and ${selectedUsers.size - 10} more` : ''}`}
+        confirmText={`Delete ${selectedUsers.size} Users`}
+        confirmVariant="danger"
+        onConfirm={handleBatchDelete}
+        onCancel={() => setShowBatchDeleteModal(false)}
+        loading={actionLoading === 'batch-delete'}
       />
     </div>
   );

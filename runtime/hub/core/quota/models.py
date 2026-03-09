@@ -69,7 +69,8 @@ class BatchQuotaUser(BaseModel):
     """User entry for batch quota operation."""
 
     username: str = Field(..., min_length=1, max_length=200, pattern=r"^[a-zA-Z0-9._@-]+$")
-    amount: int = Field(..., ge=-10_000_000, le=10_000_000)
+    amount: int = Field(default=0, ge=-10_000_000, le=10_000_000)
+    unlimited: bool | None = Field(default=None, description="Set unlimited quota (overrides amount)")
 
 
 class BatchQuotaRequest(BaseModel):

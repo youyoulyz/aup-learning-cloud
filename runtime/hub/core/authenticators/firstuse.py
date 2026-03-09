@@ -27,6 +27,7 @@ Uses SQLAlchemy to store passwords in the shared JupyterHub database.
 from __future__ import annotations
 
 import bcrypt
+from concurrent.futures import ThreadPoolExecutor
 from firstuseauthenticator import FirstUseAuthenticator
 
 from core.authenticators.models import UserPassword
@@ -104,6 +105,73 @@ class CustomFirstUseAuthenticator(FirstUseAuthenticator):
 
         suffix = " (force change on next login)" if force_change else ""
         return f"Password set for {username}{suffix}"
+
+    def batch_set_passwords(
+        self,
+        users: list[dict],
+        force_change: bool = True,
+    ) -> dict:
+        """Set passwords for multiple users in a single transaction.
+
+        Args:
+            users: List of dicts with 'username' and 'password' keys.
+            force_change: Whether to force password change on first login.
+
+        Returns:
+            Dict with 'success', 'failed' counts and 'results' list.
+        """
+        min_len = getattr(self, "min_password_length", 1)
+        results = {"success": 0, "failed": 0, "results": []}
+
+        # Validate passwords first
+        valid_entries = []
+        for entry in users:
+            username = entry["username"]
+            password = entry["password"]
+            if not password or len(password) < min_len:
+                results["failed"] += 1
+                results["results"].append({
+                    "username": username,
+                    "status": "failed",
+                    "error": f"Password too short (min {min_len})",
+                })
+                continue
+            valid_entries.append((username, password))
+
+        # Parallel bcrypt hashing (bcrypt releases GIL, threads give real speedup)
+        def _hash(pw: str) -> bytes:
+            return bcrypt.hashpw(pw.encode("utf8"), bcrypt.gensalt())
+
+        with ThreadPoolExecutor() as pool:
+            hash_results = list(pool.map(_hash, [pw for _, pw in valid_entries]))
+        hashed = [(username, h) for (username, _), h in zip(valid_entries, hash_results)]
+
+        # Single DB transaction for all password updates
+        with session_scope() as session:
+            for username, password_hash in hashed:
+                try:
+                    user_pw = session.query(UserPassword).filter_by(username=username).first()
+                    if user_pw:
+                        user_pw.password_hash = password_hash
+                        user_pw.force_change = force_change
+                    else:
+                        user_pw = UserPassword(
+                            username=username,
+                            password_hash=password_hash,
+                            force_change=force_change,
+                        )
+                        session.add(user_pw)
+                    results["success"] += 1
+                    results["results"].append({"username": username, "status": "success"})
+                except Exception as e:
+                    results["failed"] += 1
+                    results["results"].append({
+                        "username": username,
+                        "status": "failed",
+                        "error": str(e),
+                    })
+
+        return results
 
     def mark_force_password_change(self, username: str, force: bool = True) -> None:
         """Mark or unmark a user for forced password change."""
