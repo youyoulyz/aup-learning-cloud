@@ -60,15 +60,20 @@ cd aup-learning-cloud
 sudo ./auplc-installer install
 ```
 After installation completes, open http://localhost:30890 in your browser. No login credentials are required - you will be automatically logged in.
-The installer uses **Docker as the default container runtime** (`K3S_USE_DOCKER=1`), see more at [link](https://amdresearch.github.io/aup-learning-cloud/installation/single-node.html#runtime-and-mirror-configuration)
 
+Common options:
+```bash
+sudo ./auplc-installer install --gpu=strix-halo   # specify GPU type
+sudo ./auplc-installer install --docker=0          # use containerd instead of Docker
+sudo ./auplc-installer install --mirror=mirror.example.com  # use registry mirror
+```
+
+See more at [link](https://amdresearch.github.io/aup-learning-cloud/installation/single-node.html#runtime-and-mirror-configuration)
 
 ### Uninstall
 ```bash
 sudo ./auplc-installer uninstall
 ```
-
-> **💡 Tip**: For mirror configuration (registries, PyPI, npm), see [Mirror Configuration](deploy/README.md#mirror-configuration).
 
 ## Cluster Installation
 For multi-node cluster installation or need more control over the deployment process:
@@ -145,4 +150,15 @@ Please refer to [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to contrib
 
 ## Acknowledgment
 
-Icons from [Flaticon](https://www.flaticon.com): deployment (Prashanth Rapolu 15, Freepik), team & user (Freepik), machine learning (Becris).
+AUP would like to thank the following universities and professors. This learning solution was made possible through the joint efforts of these partners.
+
+| University | Professors and Labs | Toolkits |
+|---|---|---|
+| National Taiwan University | [Prof. Chun-Yi Lee](https://www.csie.ntu.edu.tw/en/member/Faculty/Chun-Yi-Lee-67240464), [ELSA Lab](https://elsalab.ai/) | DL, CV |
+| Nanjing University | [Prof. Jingwei Xu](https://njudeepengine.github.io/jingweixu/), [NJUDeepEngine](https://github.com/NJUDeepEngine) | LLM |
+
+The following repositories and icons are used in AUP Learning Cloud, either in close to original form or as an inspiration:
+
+* [Genesis](https://github.com/Genesis-Embodied-AI/Genesis)
+
+* [Flaticon](https://www.flaticon.com): deployment (Prashanth Rapolu 15, Freepik), team & user (Freepik), machine learning (Becris).

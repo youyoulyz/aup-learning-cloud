@@ -126,6 +126,7 @@ def setup_hub(c: Any) -> None:
         quota_rates=config.build_quota_rates(),
         quota_enabled=config.quota_enabled,
         minimum_quota_to_start=config.quota.minimumToStart,
+        default_quota=config.quota.defaultQuota,
     )
 
     if not hasattr(c.JupyterHub, "extra_handlers") or c.JupyterHub.extra_handlers is None:
