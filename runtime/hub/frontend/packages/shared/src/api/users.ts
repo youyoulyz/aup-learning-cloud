@@ -151,6 +151,16 @@ export async function setPassword(
   });
 }
 
+export async function batchSetPasswords(
+  users: Array<{ username: string; password: string }>,
+  force_change = true
+): Promise<{ success: number; failed: number; results: Array<{ username: string; status: string; error?: string }> }> {
+  return adminApiRequest("/batch-set-password", {
+    method: "POST",
+    body: JSON.stringify({ users, force_change }),
+  });
+}
+
 export async function generatePassword(): Promise<{ password: string }> {
   return adminApiRequest<{ password: string }>("/generate-password", {
     method: "GET",
