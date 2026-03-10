@@ -245,10 +245,11 @@ function generate_values_overlay() {
         echo "      Course-CV: \"${IMAGE_REGISTRY}/auplc-cv:${tag}\""
         echo "      Course-DL: \"${IMAGE_REGISTRY}/auplc-dl:${tag}\""
         echo "      Course-LLM: \"${IMAGE_REGISTRY}/auplc-llm:${tag}\""
-        echo "      Course-SHT-HIP: \"ghcr.io/amdresearch/auplc-sht-hip:${tag}\""
+        echo "      Course-SHT-HIP: \"${IMAGE_REGISTRY}/auplc-sht-hip:${tag}\""
+        echo "      Course-SHT-PROF: \"${IMAGE_REGISTRY}/auplc-sht-prof:${tag}\""
         echo "      Course-PhySim: \"${IMAGE_REGISTRY}/auplc-physim:${tag}\""
         echo "    metadata:"
-        for resource in gpu Course-CV Course-DL Course-LLM Course-SHT-HIP Course-PhySim ; do
+        for resource in gpu Course-CV Course-DL Course-LLM Course-SHT-HIP  Course-SHT-PROF Course-PhySim ; do
             echo "      ${resource}:"
             echo "        acceleratorKeys:"
             echo "          - ${ACCEL_KEY}"

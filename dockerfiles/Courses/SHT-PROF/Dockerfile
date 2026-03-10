@@ -1,0 +1,42 @@
+# Copyright (C) 2025 Advanced Micro Devices, Inc. All rights reserved.
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+# Use a verified ROCm PyTorch image as base
+ARG BASE_IMAGE=ghcr.io/amdresearch/auplc-base:latest
+FROM ${BASE_IMAGE}
+
+# IMPORTANT: base image ends with USER jovyan. pip install as jovyan silently
+# falls back to ~/.local/, which gets masked by the PVC mount at runtime.
+# Always switch to root before pip install to ensure system-wide installation.
+USER root
+
+# Install course-specific packages system-wide
+RUN pip3 install --no-cache-dir \
+    pandas
+
+USER root
+
+# Copy related rocm notebooks into the docker
+COPY ./course_data /opt/workspace/SHT-PROF
+
+
+
+RUN chown -R jovyan:1000 /opt/workspace
+USER jovyan
+WORKDIR /opt/workspace/SHT-PROF

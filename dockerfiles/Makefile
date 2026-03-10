@@ -130,6 +130,17 @@ sht-hip:
 	docker push public.ecr.aws/c6q0e6u6/cs290w-hip:latest
 	$(MAKE) save-image IMAGE=ghcr.io/amdresearch/auplc-sht-hip:latest
 
+sht-prof:
+	@echo "-------------------------------------------"; \
+		echo "Building SHT-PROF Course Image..."; \
+		echo "-------------------------------------------";
+
+	cd Courses/SHT-PROF && BASE_IMAGE=$(GPU_BASE_IMAGE) bash ./build.sh
+	docker tag ghcr.io/amdresearch/auplc-sht-prof:latest ghcr.io/amdresearch/auplc-sht-prof:latest-$(GPU_TARGET)
+	docker tag ghcr.io/amdresearch/auplc-sht-prof:latest-$(GPU_TARGET) public.ecr.aws/c6q0e6u6/cs290w-prof:latest
+	docker push public.ecr.aws/c6q0e6u6/cs290w-prof:latest
+	$(MAKE) save-image IMAGE=ghcr.io/amdresearch/auplc-sht-prof:latest
+
 # --- Export Images ---
 save-image:
 	@if [ -n "$(SAVE_IMAGES)" ] && [ -n "$(K3S_IMAGES_DIR)" ]; then \
