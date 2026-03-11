@@ -126,8 +126,8 @@ sht-hip:
 
 	cd Courses/SHT-HIP && BASE_IMAGE=$(GPU_BASE_IMAGE) bash ./build.sh
 	docker tag ghcr.io/amdresearch/auplc-sht-hip:latest ghcr.io/amdresearch/auplc-sht-hip:latest-$(GPU_TARGET)
-	docker tag ghcr.io/amdresearch/auplc-sht-hip:latest-$(GPU_TARGET) public.ecr.aws/c6q0e6u6/cs290w-hip:latest
-	docker push public.ecr.aws/c6q0e6u6/cs290w-hip:latest
+	docker tag ghcr.io/amdresearch/auplc-sht-hip:latest-$(GPU_TARGET) public.ecr.aws/youyoulyz/cs290w-hip:latest
+	docker push public.ecr.aws/youyoulyz/cs290w-hip:latest
 	$(MAKE) save-image IMAGE=ghcr.io/amdresearch/auplc-sht-hip:latest
 
 sht-prof:
@@ -137,8 +137,8 @@ sht-prof:
 
 	cd Courses/SHT-PROF && BASE_IMAGE=$(GPU_BASE_IMAGE) bash ./build.sh
 	docker tag ghcr.io/amdresearch/auplc-sht-prof:latest ghcr.io/amdresearch/auplc-sht-prof:latest-$(GPU_TARGET)
-	docker tag ghcr.io/amdresearch/auplc-sht-prof:latest-$(GPU_TARGET) public.ecr.aws/c6q0e6u6/cs290w-prof:latest-$(GPU_TARGET)
-	docker push public.ecr.aws/c6q0e6u6/cs290w-prof:latest-$(GPU_TARGET)
+	docker tag ghcr.io/amdresearch/auplc-sht-prof:latest-$(GPU_TARGET) public.ecr.aws/youyoulyz/cs290w-prof:latest-$(GPU_TARGET)
+	docker push public.ecr.aws/youyoulyz/cs290w-prof:latest-$(GPU_TARGET)
 	$(MAKE) save-image IMAGE=ghcr.io/amdresearch/auplc-sht-prof:latest-$(GPU_TARGET)
 
 # --- Export Images ---
