@@ -134,7 +134,7 @@ namespace
 
 int main(int argc, char* argv[])
 {
-    // 1. 定义并填充所有可用的 kernels
+
     std::vector<std::unique_ptr<ISgemm>> kernels;
     kernels.push_back(std::make_unique<Kernel0ROCBLAS>());
     kernels.push_back(std::make_unique<Kernel1Naive>());
@@ -146,7 +146,7 @@ int main(int argc, char* argv[])
     kernels.push_back(std::make_unique<Kernel7Unroll>());
     kernels.push_back(std::make_unique<Kernel8BatchedGMem>());
 
-    // 2. 解析命令行参数
+
     std::string target_kernel = "";
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
@@ -156,24 +156,20 @@ int main(int argc, char* argv[])
         }
     }
 
-    // 3. 遍历并执行
     bool found = false;
     for (auto &k : kernels)
     {
         std::string name = k->name();
-        //printf("Kernel name: %s\n", name.c_str());
-        // 如果指定了参数，则进行大小写无关或简单的字符串匹配
-        // 这里假设 k->name() 返回的是 "Kernel1Naive" 这种格式
-        // 如果你想支持 "-k kernel1"，需要简单的包含检查或预处理
+
         if (!target_kernel.empty()) {
-            // 将名字转为小写对比，增加容错性
+
             std::string lower_name = name;
             std::transform(lower_name.begin(), lower_name.end(), lower_name.begin(), ::tolower);
             std::string lower_target = target_kernel;
             std::transform(lower_target.begin(), lower_target.end(), lower_target.begin(), ::tolower);
 
             if (lower_name.find(lower_target) == std::string::npos) {
-                continue; // 没找到，跳过
+                continue;
             }
         }
 
