@@ -126,9 +126,15 @@ namespace
     }
 
 }
-int main()
-{
+#include <iostream>
+#include <vector>
+#include <memory>
+#include <string>
+#include <algorithm>
 
+int main(int argc, char* argv[])
+{
+    // 1. 定义并填充所有可用的 kernels
     std::vector<std::unique_ptr<ISgemm>> kernels;
     kernels.push_back(std::make_unique<Kernel0ROCBLAS>());
     kernels.push_back(std::make_unique<Kernel1Naive>());
@@ -139,11 +145,48 @@ int main()
     kernels.push_back(std::make_unique<Kernel6VALUOptim>());
     kernels.push_back(std::make_unique<Kernel7Unroll>());
     kernels.push_back(std::make_unique<Kernel8BatchedGMem>());
+
+    // 2. 解析命令行参数
+    std::string target_kernel = "";
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if ((arg == "-k" || arg == "--kernel") && i + 1 < argc) {
+            target_kernel = argv[i + 1];
+            break;
+        }
+    }
+
+    // 3. 遍历并执行
+    bool found = false;
     for (auto &k : kernels)
     {
-        std::cout << k->name() << std::endl;
+        std::string name = k->name();
+        //printf("Kernel name: %s\n", name.c_str());
+        // 如果指定了参数，则进行大小写无关或简单的字符串匹配
+        // 这里假设 k->name() 返回的是 "Kernel1Naive" 这种格式
+        // 如果你想支持 "-k kernel1"，需要简单的包含检查或预处理
+        if (!target_kernel.empty()) {
+            // 将名字转为小写对比，增加容错性
+            std::string lower_name = name;
+            std::transform(lower_name.begin(), lower_name.end(), lower_name.begin(), ::tolower);
+            std::string lower_target = target_kernel;
+            std::transform(lower_target.begin(), lower_target.end(), lower_target.begin(), ::tolower);
+
+            if (lower_name.find(lower_target) == std::string::npos) {
+                continue; // 没找到，跳过
+            }
+        }
+
+        found = true;
+        std::cout << "Running: " << name << std::endl;
         test_sgemm(*k);
         std::cout << "--------------------" << std::endl;
     }
+
+    if (!target_kernel.empty() && !found) {
+        std::cerr << "Error: Kernel '" << target_kernel << "' not found!" << std::endl;
+        return 1;
+    }
+
     return 0;
 }
