@@ -74,30 +74,19 @@ RUN pip3 install --no-cache-dir \
     torch-tb-profiler
 
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    vim \
-    git \
-    wget \
-    pciutils \
-    #rocprofiler-systems \
-    #rocprofiler-sdk \
-    #rocprofiler-compute \
-    #rocm-gdb \
-    #rocm-blas \
-    #rocm-hipblas \
-    #rocm-developer-tools \
+RUN apt-get update && \
+    # 先安装基础工具
+    apt-get install -y --no-install-recommends \
+    vim git wget pciutils build-essential cmake libsqlite3-dev python3-dev python3-pip clang && \
+    # 强制安装 ROCm 特定架构包，解决文件冲突
+    apt-get install -y -o Dpkg::Options::="--force-overwrite" --no-install-recommends \
     amdrocm-hipblas-common-dev-${GPU_TARGET} \
-    # amdrocm-blas-${GPU_TARGET} \
-    # amdrocm-blas-dev-${GPU_TARGET} \
+    amdrocm-blas-${GPU_TARGET} \
+    amdrocm-blas-dev-${GPU_TARGET} \
     amdrocm-profiler-base \
     amdrocm-profiler \
-    amdrocm-developer-tools \
-    build-essential \
-    cmake \
-    libsqlite3-dev \
-    python3-dev \
-    python3-pip \
-    && rm -rf /var/lib/apt/lists/*
+    amdrocm-developer-tools && \
+    rm -rf /var/lib/apt/lists/*
 USER root
 
 # Copy related rocm notebooks into the docker
