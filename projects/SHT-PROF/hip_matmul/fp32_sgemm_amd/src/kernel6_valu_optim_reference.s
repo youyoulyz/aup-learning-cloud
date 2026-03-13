@@ -1,5 +1,5 @@
 	.text
-	.amdgcn_target "amdgcn-amd-amdhsa--gfx1100"
+	.amdgcn_target "amdgcn-amd-amdhsa--gfx1151"
 	.amdhsa_code_object_version 5
 	.protected	kernel                  ; -- Begin function kernel
 	.globl	kernel

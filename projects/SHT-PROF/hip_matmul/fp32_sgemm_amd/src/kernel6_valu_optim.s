@@ -1,5 +1,5 @@
 	.text
-	.amdgcn_target "amdgcn-amd-amdhsa--gfx1100"
+	.amdgcn_target "amdgcn-amd-amdhsa--gfx1151"
 	.amdhsa_code_object_version 5
 	.protected	kernel                  ; -- Begin function kernel
 	.globl	kernel
@@ -566,19 +566,19 @@ kernel:                                 ; @kernel
 	ds_load_b64 v[190:191], v183 offset: 8
 	ds_load_b64 v[194:195], v183 offset: 64
 	ds_load_b64 v[198:199], v183 offset: 72
-	
+
 	v_add_nc_u32_e32 v202, s14, v166
 	s_addk_i32 s14, 0x200
 
  ;B on bank 0-1
 	ds_load_b64 v[184:185], v202
-	ds_load_b64 v[188:189], v202 offset: 8 
+	ds_load_b64 v[188:189], v202 offset: 8
 	ds_load_b64 v[192:193], v202 offset: 128
-	ds_load_b64 v[196:197], v202 offset: 136 
+	ds_load_b64 v[196:197], v202 offset: 136
 	ds_load_b64 v[200:201], v202 offset: 256
-	ds_load_b64 v[204:205], v202 offset: 264 
+	ds_load_b64 v[204:205], v202 offset: 264
 	ds_load_b64 v[208:209], v202 offset: 384
-	ds_load_b64 v[212:213], v202 offset: 392 
+	ds_load_b64 v[212:213], v202 offset: 392
 ;
 	v_add_nc_u32_e32 v183, 0x210, v183
 	s_cmpk_lg_i32 s14, 0x1000
@@ -651,7 +651,7 @@ kernel:                                 ; @kernel
 	v_dual_fmac_f32 v127, v198, v213 :: v_dual_fmac_f32 v124, v199, v212
 	v_dual_fmac_f32 v133, v198, v184 :: v_dual_fmac_f32 v214, v199, v185
 	v_dual_fmac_f32 v131, v199, v184 :: v_dual_fmac_f32 v128, v198, v185
-	
+
 	s_setprio 0
 	s_cbranch_scc1 .LBB0_9
 ; %bb.10:                               ;   in Loop: Header=BB0_6 Depth=1

@@ -1,5 +1,5 @@
 	.text
-	.amdgcn_target "amdgcn-amd-amdhsa--gfx1100"
+	.amdgcn_target "amdgcn-amd-amdhsa--gfx1151"
 	.amdhsa_code_object_version 5
 	.protected	kernel                  ; -- Begin function kernel
 	.globl	kernel
@@ -7,70 +7,70 @@
 	.type	kernel,@function
 kernel:                                 ; @kernel
 ; %bb.0:                                ; %.preheader193
-		
+
 	;; Init code for matrix A and B buffer Loads  - START
-	s_load_b128 s[20:23], s[0:1], 0x0 ; Matrix A and B 
+	s_load_b128 s[20:23], s[0:1], 0x0 ; Matrix A and B
 	s_waitcnt lgkmcnt(0)
 
 	; Matrix B offsets:
 	; input is s[22:23]
 	; offset base addresses s[24:39]
 
-	s_add_u32 s24, s22, 0x0000 
-	s_addc_u32 s25, s23, 0  
+	s_add_u32 s24, s22, 0x0000
+	s_addc_u32 s25, s23, 0
 	s_add_u32 s26, s22, 0x4000
-	s_addc_u32 s27, s23, 0  
+	s_addc_u32 s27, s23, 0
 	s_add_u32 s28, s22, 0x8000
-	s_addc_u32 s29, s23, 0  
+	s_addc_u32 s29, s23, 0
 	s_add_u32 s30, s22, 0xc000
-	s_addc_u32 s31, s23, 0  
+	s_addc_u32 s31, s23, 0
 	s_add_u32 s32, s22, 0x10000
-	s_addc_u32 s33, s23, 0  
+	s_addc_u32 s33, s23, 0
 	s_add_u32 s34, s22, 0x14000
-	s_addc_u32 s35, s23, 0  
+	s_addc_u32 s35, s23, 0
 	s_add_u32 s36, s22, 0x18000
-	s_addc_u32 s37, s23, 0  
+	s_addc_u32 s37, s23, 0
 	s_add_u32 s38, s22, 0x1c000
-	s_addc_u32 s39, s23, 0  
+	s_addc_u32 s39, s23, 0
 
 	; compute Matrix B offset
 	s_lshl_b32 s19, s14, 7         		; BN * blockIdx.x
-	
 
-	v_add_nc_u32_e32 v203, s19, v0 		; index = BN * blockIdx.x + threadIdx.x 
+
+	v_add_nc_u32_e32 v203, s19, v0 		; index = BN * blockIdx.x + threadIdx.x
 	v_lshlrev_b32_e32  v203,2, v203     ; offset = 4*index (VPGR offset in global_load are in bytes when using SPGR addressing)
 
 	; Matrix A offsets:
 	; input is s[20:21]
 	; offset base addresses s[40:55]
-	s_add_u32 s40, s20, 0x0000 
-	s_addc_u32 s41, s21, 0  
+	s_add_u32 s40, s20, 0x0000
+	s_addc_u32 s41, s21, 0
 	s_add_u32 s42, s20, 0x40000
-	s_addc_u32 s43, s21, 0  
+	s_addc_u32 s43, s21, 0
 	s_add_u32 s44, s20, 0x80000
-	s_addc_u32 s45, s21, 0  
+	s_addc_u32 s45, s21, 0
 	s_add_u32 s46, s20, 0xc0000
-	s_addc_u32 s47, s21, 0  
+	s_addc_u32 s47, s21, 0
 	s_add_u32 s48, s20, 0x100000
-	s_addc_u32 s49, s21, 0  
+	s_addc_u32 s49, s21, 0
 	s_add_u32 s50, s20, 0x140000
-	s_addc_u32 s51, s21, 0  
+	s_addc_u32 s51, s21, 0
 	s_add_u32 s52, s20, 0x180000
-	s_addc_u32 s53, s21, 0  
+	s_addc_u32 s53, s21, 0
 	s_add_u32 s54, s20, 0x1c0000
-	s_addc_u32 s55, s21, 0  
-	
+	s_addc_u32 s55, s21, 0
+
 	; compute Matrix A offset
 	s_lshl_b32 s19, s15, 19          ; 4096 * 128 * blockIdx.y
-	v_lshrrev_b32_e32 v1, 3, v0		 ; threadIdx.x / 8 
-	v_lshlrev_b32_e32 v1, 12, v1     ; 4096 * (threadIdx.x/8) 
-	v_and_b32_e32 v215, 7, v0 		 ; threadIdx.x % 8 
+	v_lshrrev_b32_e32 v1, 3, v0		 ; threadIdx.x / 8
+	v_lshlrev_b32_e32 v1, 12, v1     ; 4096 * (threadIdx.x/8)
+	v_and_b32_e32 v215, 7, v0 		 ; threadIdx.x % 8
 	v_add_u32_e32 v215, v1, v215     ; index = 4096*(threadIdx.x/8) + threadIdx.x % 8
 	v_add_nc_u32_e32 v215, s19, v215 ; index += 4096*128*blockIdx.y
 	v_lshlrev_b32_e32  v215,2, v215  ; offset = 4*index
 
 
-	
+
 
 	;; Init code for matrix A and B buffer Loads  - END
 
@@ -516,21 +516,21 @@ kernel:                                 ; @kernel
 
 
 	s_clause 0xB;
- ;A on bank 2-3 
+ ;A on bank 2-3
 	ds_load_b64 v[186:187], v183
 	ds_load_b64 v[190:191], v183 offset: 8
 	ds_load_b64 v[194:195], v183 offset: 64
 	ds_load_b64 v[198:199], v183 offset: 72
-	
- ;B on bank 0-1 
+
+ ;B on bank 0-1
 	ds_load_b64 v[184:185], v202
-	ds_load_b64 v[188:189], v202 offset: 8 
+	ds_load_b64 v[188:189], v202 offset: 8
 	ds_load_b64 v[192:193], v202 offset: 128
-	ds_load_b64 v[196:197], v202 offset: 136 
+	ds_load_b64 v[196:197], v202 offset: 136
 	ds_load_b64 v[200:201], v202 offset: 256
-	ds_load_b64 v[204:205], v202 offset: 264 
+	ds_load_b64 v[204:205], v202 offset: 264
 	ds_load_b64 v[208:209], v202 offset: 384
-	ds_load_b64 v[212:213], v202 offset: 392 
+	ds_load_b64 v[212:213], v202 offset: 392
 
 	v_add_nc_u32_e32 v183, 0x210, v183
 	v_add_nc_u32_e32 v202, 0x200, v202
@@ -610,22 +610,22 @@ s_setprio 0
 	global_load_b32	 v172, v203, s[34:35]
 
 	s_clause 0xB;
- ;A on bank 2-3 
+ ;A on bank 2-3
 	ds_load_b64 v[186:187], v183
 	ds_load_b64 v[190:191], v183 offset: 8
 	ds_load_b64 v[194:195], v183 offset: 64
 	ds_load_b64 v[198:199], v183 offset: 72
-	
 
- ;B on bank 0-1 
+
+ ;B on bank 0-1
 	ds_load_b64 v[184:185], v202
-	ds_load_b64 v[188:189], v202 offset: 8 
+	ds_load_b64 v[188:189], v202 offset: 8
 	ds_load_b64 v[192:193], v202 offset: 128
-	ds_load_b64 v[196:197], v202 offset: 136 
+	ds_load_b64 v[196:197], v202 offset: 136
 	ds_load_b64 v[200:201], v202 offset: 256
-	ds_load_b64 v[204:205], v202 offset: 264 
+	ds_load_b64 v[204:205], v202 offset: 264
 	ds_load_b64 v[208:209], v202 offset: 384
-	ds_load_b64 v[212:213], v202 offset: 392 
+	ds_load_b64 v[212:213], v202 offset: 392
 
 	v_add_nc_u32_e32 v183, 0x210, v183
 	v_add_nc_u32_e32 v202, 0x200, v202
@@ -708,22 +708,22 @@ s_setprio 0
 	global_load_b32	 v174, v203, s[38:39]
 
 	s_clause 0xB;
- ;A on bank 2-3 
+ ;A on bank 2-3
 	ds_load_b64 v[186:187], v183
 	ds_load_b64 v[190:191], v183 offset: 8
 	ds_load_b64 v[194:195], v183 offset: 64
 	ds_load_b64 v[198:199], v183 offset: 72
-	
 
- ;B on bank 0-1 
+
+ ;B on bank 0-1
 	ds_load_b64 v[184:185], v202
-	ds_load_b64 v[188:189], v202 offset: 8 
+	ds_load_b64 v[188:189], v202 offset: 8
 	ds_load_b64 v[192:193], v202 offset: 128
-	ds_load_b64 v[196:197], v202 offset: 136 
+	ds_load_b64 v[196:197], v202 offset: 136
 	ds_load_b64 v[200:201], v202 offset: 256
-	ds_load_b64 v[204:205], v202 offset: 264 
+	ds_load_b64 v[204:205], v202 offset: 264
 	ds_load_b64 v[208:209], v202 offset: 384
-	ds_load_b64 v[212:213], v202 offset: 392 
+	ds_load_b64 v[212:213], v202 offset: 392
 
 	v_add_nc_u32_e32 v183, 0x210, v183
 	v_add_nc_u32_e32 v202, 0x200, v202
@@ -805,22 +805,22 @@ s_setprio 0
 	global_load_b32	 v176, v215, s[42:43]
 
 	s_clause 0xB;
- ;A on bank 2-3 
+ ;A on bank 2-3
 	ds_load_b64 v[186:187], v183
 	ds_load_b64 v[190:191], v183 offset: 8
 	ds_load_b64 v[194:195], v183 offset: 64
 	ds_load_b64 v[198:199], v183 offset: 72
-	
 
- ;B on bank 0-1 
+
+ ;B on bank 0-1
 	ds_load_b64 v[184:185], v202
-	ds_load_b64 v[188:189], v202 offset: 8 
+	ds_load_b64 v[188:189], v202 offset: 8
 	ds_load_b64 v[192:193], v202 offset: 128
-	ds_load_b64 v[196:197], v202 offset: 136 
+	ds_load_b64 v[196:197], v202 offset: 136
 	ds_load_b64 v[200:201], v202 offset: 256
-	ds_load_b64 v[204:205], v202 offset: 264 
+	ds_load_b64 v[204:205], v202 offset: 264
 	ds_load_b64 v[208:209], v202 offset: 384
-	ds_load_b64 v[212:213], v202 offset: 392 
+	ds_load_b64 v[212:213], v202 offset: 392
 
 	v_add_nc_u32_e32 v183, 0x210, v183
 	v_add_nc_u32_e32 v202, 0x200, v202
@@ -904,22 +904,22 @@ s_setprio 0
 	global_load_b32	 v178, v215, s[46:47]
 
 	s_clause 0xB;
- ;A on bank 2-3 
+ ;A on bank 2-3
 	ds_load_b64 v[186:187], v183
 	ds_load_b64 v[190:191], v183 offset: 8
 	ds_load_b64 v[194:195], v183 offset: 64
 	ds_load_b64 v[198:199], v183 offset: 72
-	
 
- ;B on bank 0-1 
+
+ ;B on bank 0-1
 	ds_load_b64 v[184:185], v202
-	ds_load_b64 v[188:189], v202 offset: 8 
+	ds_load_b64 v[188:189], v202 offset: 8
 	ds_load_b64 v[192:193], v202 offset: 128
-	ds_load_b64 v[196:197], v202 offset: 136 
+	ds_load_b64 v[196:197], v202 offset: 136
 	ds_load_b64 v[200:201], v202 offset: 256
-	ds_load_b64 v[204:205], v202 offset: 264 
+	ds_load_b64 v[204:205], v202 offset: 264
 	ds_load_b64 v[208:209], v202 offset: 384
-	ds_load_b64 v[212:213], v202 offset: 392 
+	ds_load_b64 v[212:213], v202 offset: 392
 
 	v_add_nc_u32_e32 v183, 0x210, v183
 	v_add_nc_u32_e32 v202, 0x200, v202
@@ -1002,22 +1002,22 @@ s_setprio 0
 
 
 	s_clause 0xB;
- ;A on bank 2-3 
+ ;A on bank 2-3
 	ds_load_b64 v[186:187], v183
 	ds_load_b64 v[190:191], v183 offset: 8
 	ds_load_b64 v[194:195], v183 offset: 64
 	ds_load_b64 v[198:199], v183 offset: 72
-	
 
- ;B on bank 0-1 
+
+ ;B on bank 0-1
 	ds_load_b64 v[184:185], v202
-	ds_load_b64 v[188:189], v202 offset: 8 
+	ds_load_b64 v[188:189], v202 offset: 8
 	ds_load_b64 v[192:193], v202 offset: 128
-	ds_load_b64 v[196:197], v202 offset: 136 
+	ds_load_b64 v[196:197], v202 offset: 136
 	ds_load_b64 v[200:201], v202 offset: 256
-	ds_load_b64 v[204:205], v202 offset: 264 
+	ds_load_b64 v[204:205], v202 offset: 264
 	ds_load_b64 v[208:209], v202 offset: 384
-	ds_load_b64 v[212:213], v202 offset: 392 
+	ds_load_b64 v[212:213], v202 offset: 392
 
 	v_add_nc_u32_e32 v183, 0x210, v183
 	v_add_nc_u32_e32 v202, 0x200, v202
@@ -1097,22 +1097,22 @@ s_setprio 0
 	global_load_b32	 v181, v215, s[52:53]
 	global_load_b32	 v182, v215, s[54:55]
 	s_clause 0xB;
- ;A on bank 2-3 
+ ;A on bank 2-3
 	ds_load_b64 v[186:187], v183
 	ds_load_b64 v[190:191], v183 offset: 8
 	ds_load_b64 v[194:195], v183 offset: 64
 	ds_load_b64 v[198:199], v183 offset: 72
-	
 
- ;B on bank 0-1 
+
+ ;B on bank 0-1
 	ds_load_b64 v[184:185], v202
-	ds_load_b64 v[188:189], v202 offset: 8 
+	ds_load_b64 v[188:189], v202 offset: 8
 	ds_load_b64 v[192:193], v202 offset: 128
-	ds_load_b64 v[196:197], v202 offset: 136 
+	ds_load_b64 v[196:197], v202 offset: 136
 	ds_load_b64 v[200:201], v202 offset: 256
-	ds_load_b64 v[204:205], v202 offset: 264 
+	ds_load_b64 v[204:205], v202 offset: 264
 	ds_load_b64 v[208:209], v202 offset: 384
-	ds_load_b64 v[212:213], v202 offset: 392 
+	ds_load_b64 v[212:213], v202 offset: 392
 
 	v_add_nc_u32_e32 v183, 0x210, v183
 	v_add_nc_u32_e32 v202, 0x200, v202
@@ -1193,22 +1193,22 @@ s_setprio 0
 
 
 	s_clause 0xB;
- ;A on bank 2-3 
+ ;A on bank 2-3
 	ds_load_b64 v[186:187], v183
 	ds_load_b64 v[190:191], v183 offset: 8
 	ds_load_b64 v[194:195], v183 offset: 64
 	ds_load_b64 v[198:199], v183 offset: 72
-	
 
- ;B on bank 0-1 
+
+ ;B on bank 0-1
 	ds_load_b64 v[184:185], v202
-	ds_load_b64 v[188:189], v202 offset: 8 
+	ds_load_b64 v[188:189], v202 offset: 8
 	ds_load_b64 v[192:193], v202 offset: 128
-	ds_load_b64 v[196:197], v202 offset: 136 
+	ds_load_b64 v[196:197], v202 offset: 136
 	ds_load_b64 v[200:201], v202 offset: 256
-	ds_load_b64 v[204:205], v202 offset: 264 
+	ds_load_b64 v[204:205], v202 offset: 264
 	ds_load_b64 v[208:209], v202 offset: 384
-	ds_load_b64 v[212:213], v202 offset: 392 
+	ds_load_b64 v[212:213], v202 offset: 392
 
 	v_add_nc_u32_e32 v183, 0x210, v183
 	v_add_nc_u32_e32 v202, 0x200, v202

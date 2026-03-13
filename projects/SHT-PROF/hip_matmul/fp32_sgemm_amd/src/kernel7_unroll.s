@@ -1,5 +1,5 @@
 	.text
-	.amdgcn_target "amdgcn-amd-amdhsa--gfx1100"
+	.amdgcn_target "amdgcn-amd-amdhsa--gfx1151"
 	.amdhsa_code_object_version 5
 	.protected	kernel                  ; -- Begin function kernel
 	.globl	kernel
@@ -564,21 +564,21 @@ kernel:                                 ; @kernel
 
 
 	s_clause 0xB;
- ;A on bank 2-3 
+ ;A on bank 2-3
 	ds_load_b64 v[186:187], v183
 	ds_load_b64 v[190:191], v183 offset: 8
 	ds_load_b64 v[194:195], v183 offset: 64
 	ds_load_b64 v[198:199], v183 offset: 72
-	
- ;B on bank 0-1 
+
+ ;B on bank 0-1
 	ds_load_b64 v[184:185], v202
-	ds_load_b64 v[188:189], v202 offset: 8 
+	ds_load_b64 v[188:189], v202 offset: 8
 	ds_load_b64 v[192:193], v202 offset: 128
-	ds_load_b64 v[196:197], v202 offset: 136 
+	ds_load_b64 v[196:197], v202 offset: 136
 	ds_load_b64 v[200:201], v202 offset: 256
-	ds_load_b64 v[204:205], v202 offset: 264 
+	ds_load_b64 v[204:205], v202 offset: 264
 	ds_load_b64 v[208:209], v202 offset: 384
-	ds_load_b64 v[212:213], v202 offset: 392 
+	ds_load_b64 v[212:213], v202 offset: 392
 
 	v_add_nc_u32_e32 v183, 0x210, v183
 	v_add_nc_u32_e32 v202, 0x200, v202
@@ -656,22 +656,22 @@ s_setprio 0
 
 
 	s_clause 0xB;
- ;A on bank 2-3 
+ ;A on bank 2-3
 	ds_load_b64 v[186:187], v183
 	ds_load_b64 v[190:191], v183 offset: 8
 	ds_load_b64 v[194:195], v183 offset: 64
 	ds_load_b64 v[198:199], v183 offset: 72
-	
 
- ;B on bank 0-1 
+
+ ;B on bank 0-1
 	ds_load_b64 v[184:185], v202
-	ds_load_b64 v[188:189], v202 offset: 8 
+	ds_load_b64 v[188:189], v202 offset: 8
 	ds_load_b64 v[192:193], v202 offset: 128
-	ds_load_b64 v[196:197], v202 offset: 136 
+	ds_load_b64 v[196:197], v202 offset: 136
 	ds_load_b64 v[200:201], v202 offset: 256
-	ds_load_b64 v[204:205], v202 offset: 264 
+	ds_load_b64 v[204:205], v202 offset: 264
 	ds_load_b64 v[208:209], v202 offset: 384
-	ds_load_b64 v[212:213], v202 offset: 392 
+	ds_load_b64 v[212:213], v202 offset: 392
 
 	v_add_nc_u32_e32 v183, 0x210, v183
 	v_add_nc_u32_e32 v202, 0x200, v202
@@ -751,22 +751,22 @@ s_setprio 0
 
 
 	s_clause 0xB;
- ;A on bank 2-3 
+ ;A on bank 2-3
 	ds_load_b64 v[186:187], v183
 	ds_load_b64 v[190:191], v183 offset: 8
 	ds_load_b64 v[194:195], v183 offset: 64
 	ds_load_b64 v[198:199], v183 offset: 72
-	
 
- ;B on bank 0-1 
+
+ ;B on bank 0-1
 	ds_load_b64 v[184:185], v202
-	ds_load_b64 v[188:189], v202 offset: 8 
+	ds_load_b64 v[188:189], v202 offset: 8
 	ds_load_b64 v[192:193], v202 offset: 128
-	ds_load_b64 v[196:197], v202 offset: 136 
+	ds_load_b64 v[196:197], v202 offset: 136
 	ds_load_b64 v[200:201], v202 offset: 256
-	ds_load_b64 v[204:205], v202 offset: 264 
+	ds_load_b64 v[204:205], v202 offset: 264
 	ds_load_b64 v[208:209], v202 offset: 384
-	ds_load_b64 v[212:213], v202 offset: 392 
+	ds_load_b64 v[212:213], v202 offset: 392
 
 	v_add_nc_u32_e32 v183, 0x210, v183
 	v_add_nc_u32_e32 v202, 0x200, v202
@@ -846,22 +846,22 @@ s_setprio 0
 
 
 	s_clause 0xB;
- ;A on bank 2-3 
+ ;A on bank 2-3
 	ds_load_b64 v[186:187], v183
 	ds_load_b64 v[190:191], v183 offset: 8
 	ds_load_b64 v[194:195], v183 offset: 64
 	ds_load_b64 v[198:199], v183 offset: 72
-	
 
- ;B on bank 0-1 
+
+ ;B on bank 0-1
 	ds_load_b64 v[184:185], v202
-	ds_load_b64 v[188:189], v202 offset: 8 
+	ds_load_b64 v[188:189], v202 offset: 8
 	ds_load_b64 v[192:193], v202 offset: 128
-	ds_load_b64 v[196:197], v202 offset: 136 
+	ds_load_b64 v[196:197], v202 offset: 136
 	ds_load_b64 v[200:201], v202 offset: 256
-	ds_load_b64 v[204:205], v202 offset: 264 
+	ds_load_b64 v[204:205], v202 offset: 264
 	ds_load_b64 v[208:209], v202 offset: 384
-	ds_load_b64 v[212:213], v202 offset: 392 
+	ds_load_b64 v[212:213], v202 offset: 392
 
 	v_add_nc_u32_e32 v183, 0x210, v183
 	v_add_nc_u32_e32 v202, 0x200, v202
@@ -941,22 +941,22 @@ s_setprio 0
 
 
 	s_clause 0xB;
- ;A on bank 2-3 
+ ;A on bank 2-3
 	ds_load_b64 v[186:187], v183
 	ds_load_b64 v[190:191], v183 offset: 8
 	ds_load_b64 v[194:195], v183 offset: 64
 	ds_load_b64 v[198:199], v183 offset: 72
-	
 
- ;B on bank 0-1 
+
+ ;B on bank 0-1
 	ds_load_b64 v[184:185], v202
-	ds_load_b64 v[188:189], v202 offset: 8 
+	ds_load_b64 v[188:189], v202 offset: 8
 	ds_load_b64 v[192:193], v202 offset: 128
-	ds_load_b64 v[196:197], v202 offset: 136 
+	ds_load_b64 v[196:197], v202 offset: 136
 	ds_load_b64 v[200:201], v202 offset: 256
-	ds_load_b64 v[204:205], v202 offset: 264 
+	ds_load_b64 v[204:205], v202 offset: 264
 	ds_load_b64 v[208:209], v202 offset: 384
-	ds_load_b64 v[212:213], v202 offset: 392 
+	ds_load_b64 v[212:213], v202 offset: 392
 
 	v_add_nc_u32_e32 v183, 0x210, v183
 	v_add_nc_u32_e32 v202, 0x200, v202
@@ -1036,22 +1036,22 @@ s_setprio 0
 
 
 	s_clause 0xB;
- ;A on bank 2-3 
+ ;A on bank 2-3
 	ds_load_b64 v[186:187], v183
 	ds_load_b64 v[190:191], v183 offset: 8
 	ds_load_b64 v[194:195], v183 offset: 64
 	ds_load_b64 v[198:199], v183 offset: 72
-	
 
- ;B on bank 0-1 
+
+ ;B on bank 0-1
 	ds_load_b64 v[184:185], v202
-	ds_load_b64 v[188:189], v202 offset: 8 
+	ds_load_b64 v[188:189], v202 offset: 8
 	ds_load_b64 v[192:193], v202 offset: 128
-	ds_load_b64 v[196:197], v202 offset: 136 
+	ds_load_b64 v[196:197], v202 offset: 136
 	ds_load_b64 v[200:201], v202 offset: 256
-	ds_load_b64 v[204:205], v202 offset: 264 
+	ds_load_b64 v[204:205], v202 offset: 264
 	ds_load_b64 v[208:209], v202 offset: 384
-	ds_load_b64 v[212:213], v202 offset: 392 
+	ds_load_b64 v[212:213], v202 offset: 392
 
 	v_add_nc_u32_e32 v183, 0x210, v183
 	v_add_nc_u32_e32 v202, 0x200, v202
@@ -1130,22 +1130,22 @@ s_setprio 0
 
 
 	s_clause 0xB;
- ;A on bank 2-3 
+ ;A on bank 2-3
 	ds_load_b64 v[186:187], v183
 	ds_load_b64 v[190:191], v183 offset: 8
 	ds_load_b64 v[194:195], v183 offset: 64
 	ds_load_b64 v[198:199], v183 offset: 72
-	
 
- ;B on bank 0-1 
+
+ ;B on bank 0-1
 	ds_load_b64 v[184:185], v202
-	ds_load_b64 v[188:189], v202 offset: 8 
+	ds_load_b64 v[188:189], v202 offset: 8
 	ds_load_b64 v[192:193], v202 offset: 128
-	ds_load_b64 v[196:197], v202 offset: 136 
+	ds_load_b64 v[196:197], v202 offset: 136
 	ds_load_b64 v[200:201], v202 offset: 256
-	ds_load_b64 v[204:205], v202 offset: 264 
+	ds_load_b64 v[204:205], v202 offset: 264
 	ds_load_b64 v[208:209], v202 offset: 384
-	ds_load_b64 v[212:213], v202 offset: 392 
+	ds_load_b64 v[212:213], v202 offset: 392
 
 	v_add_nc_u32_e32 v183, 0x210, v183
 	v_add_nc_u32_e32 v202, 0x200, v202
@@ -1224,22 +1224,22 @@ s_setprio 0
 
 
 	s_clause 0xB;
- ;A on bank 2-3 
+ ;A on bank 2-3
 	ds_load_b64 v[186:187], v183
 	ds_load_b64 v[190:191], v183 offset: 8
 	ds_load_b64 v[194:195], v183 offset: 64
 	ds_load_b64 v[198:199], v183 offset: 72
-	
 
- ;B on bank 0-1 
+
+ ;B on bank 0-1
 	ds_load_b64 v[184:185], v202
-	ds_load_b64 v[188:189], v202 offset: 8 
+	ds_load_b64 v[188:189], v202 offset: 8
 	ds_load_b64 v[192:193], v202 offset: 128
-	ds_load_b64 v[196:197], v202 offset: 136 
+	ds_load_b64 v[196:197], v202 offset: 136
 	ds_load_b64 v[200:201], v202 offset: 256
-	ds_load_b64 v[204:205], v202 offset: 264 
+	ds_load_b64 v[204:205], v202 offset: 264
 	ds_load_b64 v[208:209], v202 offset: 384
-	ds_load_b64 v[212:213], v202 offset: 392 
+	ds_load_b64 v[212:213], v202 offset: 392
 
 	v_add_nc_u32_e32 v183, 0x210, v183
 	v_add_nc_u32_e32 v202, 0x200, v202
