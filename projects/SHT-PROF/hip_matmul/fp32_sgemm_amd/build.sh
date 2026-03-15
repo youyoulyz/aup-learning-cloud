@@ -1,7 +1,8 @@
  #!/bin/bash
  export HIP_PLATFORM=amd
 
-export PATH=$PATH:/opt/rocm-7.2.0/bin:/opt/rocm-7.2.0/llvm/bin
+# export PATH=$PATH:/opt/rocm-7.2.0/bin:/opt/rocm-7.2.0/llvm/bin
+export PATH=$PATH:/opt/rocm/core-7.11/bin:/opt/rocm/core-7.11/lib/llvm/bin
 
 mkdir -p tmp
 rm tmp/*.o
