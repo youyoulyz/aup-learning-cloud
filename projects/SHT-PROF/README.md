@@ -12,7 +12,7 @@ https://www.cnblogs.com/arnoldlu/p/19073392
 https://github.com/ROCm/rocprof-compute-viewer
 https://zhuanlan.zhihu.com/p/1916848373232800916
 https://www.ccs.tsukuba.ac.jp/wp-content/uploads/sites/14/2025/09/20.-Newer-tools-ROCprof-Trace-Decoder-and-Omnistat.pdf
-
+https://462000265.lumidata.eu/4day-20241028/files/LUMI-4day-20241028-3_09_Introduction_to_Rocprof_Profiling_Tool.pdf
 Rocm-ncu
 https://gpuopen.com/rgp/
 

@@ -166,6 +166,7 @@ custom:
       Course-SHT-HIP: "ghcr.io/amdresearch/auplc-sht-hip:latest"
       Course-PhySim: "ghcr.io/amdresearch/auplc-physim:latest"
       Course-SHT-PROF: "ghcr.io/amdresearch/auplc-sht-prof:latest"
+      Course-SHT-LLM: "ghcr.io/amdresearch/auplc-sht-llm:latest"
       # Custom-URL: "ghcr.io/amdresearch/auplc-cv:latest"
 
     # Course Resource Requirements
@@ -206,6 +207,11 @@ custom:
         memory_limit: "24Gi"
         amd.com/gpu: "1"
       Course-SHT-PROF:
+        cpu: "4"
+        memory: "16Gi"
+        memory_limit: "24Gi"
+        amd.com/gpu: "1"
+      Course-SHT-LLM:
         cpu: "4"
         memory: "16Gi"
         memory_limit: "24Gi"
@@ -278,6 +284,13 @@ custom:
         accelerator: "GPU"
         acceleratorKeys:
           - strix-halo
+      Course-SHT-LLM:
+        group: "COURSE"
+        description: "ShanghaiTech CS290W Course"
+        subDescription: "Suitable for SHT-LLM experiments with GPU"
+        accelerator: "GPU"
+        acceleratorKeys:
+          - strix-halo
       Course-PhySim:
         group: "COURSE"
         description: "Genesis Physical Simulation Course"
@@ -301,6 +314,7 @@ custom:
         - Course-PhySim
         - Course-SHT-HIP
         - Course-SHT-PROF
+        - Course-SHT-LLM
 
       official:
         - cpu

@@ -141,6 +141,18 @@ sht-prof:
 	docker push public.ecr.aws/youyoulyz/cs290w-prof:latest-$(GPU_TARGET)
 	$(MAKE) save-image IMAGE=ghcr.io/amdresearch/auplc-sht-prof:latest-$(GPU_TARGET)
 
+
+sht-llm:
+	@echo "-------------------------------------------"; \
+		echo "Building SHT-LLM Course Image..."; \
+		echo "-------------------------------------------";
+
+	cd Courses/SHT-LLM && BASE_IMAGE=$(GPU_BASE_IMAGE) bash ./build.sh
+	docker tag ghcr.io/amdresearch/auplc-sht-llm:latest ghcr.io/amdresearch/auplc-sht-llm:latest-$(GPU_TARGET)
+	docker tag ghcr.io/amdresearch/auplc-sht-llm:latest-$(GPU_TARGET) public.ecr.aws/youyoulyz/cs290w-llm:latest-$(GPU_TARGET)
+	docker push public.ecr.aws/youyoulyz/cs290w-llm:latest-$(GPU_TARGET)
+	$(MAKE) save-image IMAGE=ghcr.io/amdresearch/auplc-sht-llm:latest-$(GPU_TARGET)
+
 # --- Export Images ---
 save-image:
 	@if [ -n "$(SAVE_IMAGES)" ] && [ -n "$(K3S_IMAGES_DIR)" ]; then \
