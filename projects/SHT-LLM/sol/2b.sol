@@ -35,7 +35,7 @@ print("Gradient check passed!")
 
 #6.2
 
-x_large = torch.randn(128, 4096, 30, 20, device=device)
+x_large = torch.randn(128, 512, 30, 20, device=device)
 
 print("--- Large Tensor Processing ---")
 print(f"Large tensor shape: {x_large.shape}")
@@ -48,12 +48,12 @@ print("\n--- Direct Application on 4D Tensor ---")
 print(f"Shape after L1: {y1_large.shape}")
 print(f"Final shape (L2): {y2_large.shape}")
 
-expected_shape = (128, 4096, 30, 40)
+expected_shape = (128, 512, 30, 40)
 assert y2_large.shape == expected_shape, "The final shape is incorrect!"
 print(f"\nShape verification successful!")
 
 #6.3
-x_reshape = torch.randn(128, 4096, 30, 20, device=device)
+x_reshape = torch.randn(128, 512, 30, 20, device=device)
 b, s, h, w = x_reshape.shape
 print(f"--- Tensor Reshaping Strategies ---")
 print(f"Original shape: {x_reshape.shape}")
@@ -81,36 +81,36 @@ print("Automatic dimension calculation successful.")
 #8.2
 class LeNet(nn.Module):
     """LeNet-5 variant for FashionMNIST classification"""
-    
+
     def __init__(self, num_classes=10):
         super(LeNet, self).__init__()
-        
+
         # Convolutional layers
         self.conv1 = nn.Conv2d(1, 6, kernel_size=5)    # 28×28×1 → 24×24×6
         self.conv2 = nn.Conv2d(6, 16, kernel_size=5)   # 12×12×6 → 8×8×16
-        
+
         # Fully connected layers
         self.fc1 = nn.Linear(16 * 4 * 4, 120)  # Flattened conv output → 120
         self.fc2 = nn.Linear(120, 84)          # 120 → 84
         self.fc3 = nn.Linear(84, num_classes)  # 84 → 10 classes
-        
+
         # Pooling layer (reused)
         self.pool = nn.MaxPool2d(2, 2)
-        
+
     def forward(self, x):
         """Forward pass through the network"""
         # Feature extraction
         x = self.pool(F.relu(self.conv1(x)))  # Conv1 → ReLU → Pool
         x = self.pool(F.relu(self.conv2(x)))  # Conv2 → ReLU → Pool
-        
+
         # Flatten for fully connected layers
         x = x.view(-1, 16 * 4 * 4)  # Flatten: [batch, 16, 4, 4] → [batch, 256]
-        
+
         # Classification layers
         x = F.relu(self.fc1(x))  # FC1 → ReLU
         x = F.relu(self.fc2(x))  # FC2 → ReLU
         x = self.fc3(x)          # Final layer (no activation - raw logits)
-        
+
         return x
 
 #8.3
