@@ -33,29 +33,3 @@ rms_std = rms_norm_output.std(dim=-1)
 layer_norm_mean = layer_norm_output.mean(dim=-1)
 layer_norm_std = layer_norm_output.std(dim=-1)
 
-#2
-def __init__(self, dim=128, max_seq_len=512, base=10000):
-        super().__init__()
-        self.dim = dim
-        self.base = base
-        self.max_seq_len = max_seq_len
-        
-        # Pre-compute positional encodings
-        pe = torch.zeros(max_seq_len, dim)
-        
-        # Position indices
-        position = torch.arange(0, max_seq_len, dtype=torch.float).unsqueeze(1)
-        print(f"Position tensor shape: {position.shape}")
-        
-        # Frequency computation
-        div_term = torch.exp(torch.arange(0, dim, 2).float() * 
-                           -(torch.log(torch.tensor(base)) / dim))
-        print(f"Division term shape: {div_term.shape}")
-        print(f"First few frequency values: {div_term[:5]}")
-        
-        # Apply sin to even indices, cos to odd indices
-        pe[:, 0::2] = torch.sin(position * div_term)
-        pe[:, 1::2] = torch.cos(position * div_term)
-        
-        # Register as buffer (not a parameter, but part of state)
-        self.register_buffer('pe', pe)
