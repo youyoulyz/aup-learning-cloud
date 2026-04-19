@@ -12,8 +12,8 @@
 
 % Title info
 \title{FlashAttention: GPU-Efficient Attention}
-\subtitle{LLM07 Lecture}
-\author{AUP Learning Cloud}
+\subtitle{CS290W LLM07 Lecture}
+\author{LU Yuzhou}
 \date{}
 
 % Code listing style
@@ -46,16 +46,18 @@
         \item For long sequences, memory bandwidth is the bottleneck, not FLOPs
     \end{itemize}
 
-    \vspace{0.5cm}
+    \vspace{0.3cm}
     \textbf{FlashAttention Solution:} Leverage GPU memory hierarchy to minimize HBM access
 
-    \vspace{0.5cm}
+    \vspace{0.3cm}
     \begin{block}{Key Insight}
         On-chip SRAM (shared memory) is $\sim 10\times$ faster than HBM. Keep intermediate results on-chip!
     \end{block}
 
     \vspace{0.3cm}
-    {\footnotesize \textit{[INSERT IMAGE: GPU memory hierarchy diagram showing registers → SRAM → L2 → HBM]}}
+    \begin{center}
+        \includegraphics[width=0.3\textwidth]{img/07-01-gpu-memory-hierarchy.jpg}
+    \end{center}
 \end{frame}
 
 % Slide 2: GPU Memory Hierarchy
@@ -75,19 +77,18 @@
         \end{tabular}
     \end{table}
 
-    \vspace{0.5cm}
+    \vspace{1cm}
     \begin{itemize}
         \item Shared memory bandwidth: \textbf{19 TB/s} vs HBM: \textbf{2 TB/s}
         \item Goal: Minimize HBM round-trips by keeping intermediates in SRAM
     \end{itemize}
 
-    \vspace{0.3cm}
-    {\footnotesize \textit{[INSERT IMAGE: GPU architecture diagram showing SM, SRAM, HBM layout]}}
+
 \end{frame}
 
 % Slide 2b: Measuring Actual Bandwidth
 \begin{frame}[fragile]{Measuring Actual Memory Bandwidth}
-    \textbf{Lab Exercise:} Measure HBM bandwidth on your machine using tensor copy:
+    \textbf{Lab Exercise:} Measure HBM/GDDR bandwidth on your machine using tensor copy:
 
     \vspace{0.3cm}
     \begin{lstlisting}[language=Python]
@@ -114,30 +115,31 @@ def measure_memory_bandwidth(device, size_mb=256):
 \end{frame}
 
 % Slide 3: Standard Attention IO Analysis
-\begin{frame}{Standard Attention: Why $O(N^2)$ HBM Access?}
+\begin{frame}{Standard Attention IO Analysis: Why $O(N^2)$ HBM Access?}
     For sequence length $N$ and head dimension $d$:
 
-    \vspace{0.3cm}
     \begin{enumerate}
         \item Read $Q, K$ from HBM → Compute $S = QK^T$ → \textbf{Write $S$ to HBM}
         \item Read $S$ → Compute $P = \text{softmax}(S)$ → \textbf{Write $P$ to HBM}
         \item Read $P, V$ → Compute $O = PV$ → Write $O$ to HBM
     \end{enumerate}
 
-    \vspace{0.5cm}
+    \vspace{0.1cm}
     \begin{block}{Total HBM Access}
         $O(Nd + N^2)$ — dominated by the $N \times N$ matrices $S$ and $P$
     \end{block}
 
-    \vspace{0.3cm}
+    \vspace{0.1cm}
     Example: $N=4096$, FP16 → Score matrix = \textbf{33.6 MB per head}
 
-    \vspace{0.3cm}
-    {\footnotesize \textit{[INSERT IMAGE: Memory flow diagram showing HBM reads/writes for standard attention]}}
+
+    \begin{center}
+        \includegraphics[width=0.4\textwidth]{img/07-06-operator-fusion.jpg}
+    \end{center}
 \end{frame}
 
 % Slide 4: Tiling for Matrix Multiplication
-\begin{frame}{Tiling: Partitioning for SRAM}
+\begin{frame}{Optmization 1# Tiling: Partitioning for SRAM}
     \textbf{Tiling} partitions matrices into blocks that fit in shared memory.
 
     \vspace{0.3cm}
@@ -148,16 +150,7 @@ def measure_memory_bandwidth(device, size_mb=256):
         \item Global memory reads: $65{,}536 \to 4{,}096$ (\textbf{16× reduction})
     \end{itemize}
 
-    \vspace{0.5cm}
-    \begin{block}{Challenge for Attention}
-        Row-wise softmax depends on the \textbf{entire row}. Cannot compute softmax per-tile until all tiles are seen.
-    \end{block}
 
-    \vspace{0.3cm}
-    Solution: \textbf{Online Softmax}
-
-    \vspace{0.3cm}
-    {\footnotesize \textit{[INSERT IMAGE: Tiled matrix multiplication diagram showing tile loading]}}
 \end{frame}
 
 % Slide 4b: HIP Kernel for Tiled MatMul
@@ -169,18 +162,18 @@ def measure_memory_bandwidth(device, size_mb=256):
 __global__ void tiledMatMul(float* A, float* B, float* C) {
     __shared__ float As[TILE][TILE];
     __shared__ float Bs[TILE][TILE];
-    
+
     int tx = threadIdx.x, ty = threadIdx.y;
     int row = blockIdx.y * TILE + ty;
     int col = blockIdx.x * TILE + tx;
     float sum = 0.0f;
-    
+
     for (int t = 0; t < numTiles; t++) {
         // Load tiles from HBM to SRAM
         As[ty][tx] = A[row * K + t*TILE + tx];
         Bs[ty][tx] = B[(t*TILE + ty) * N + col];
         __syncthreads();  // Wait for all threads
-        
+
         // Compute in SRAM (fast!)
         for (int k = 0; k < TILE; k++)
             sum += As[ty][k] * Bs[k][tx];
@@ -190,30 +183,29 @@ __global__ void tiledMatMul(float* A, float* B, float* C) {
 }
     \end{lstlisting}
 
-    \vspace{0.3cm}
-    {\footnotesize \textit{[INSERT IMAGE: HIP kernel execution flow showing shared memory usage]}}
+
 \end{frame}
 
 % Slide 5: What is Softmax?
-\begin{frame}{What is Softmax?}
+\begin{frame}{Normal Softmax: Two-Pass Algorithm}
     \textbf{Softmax} converts real numbers to a probability distribution:
 
-    \vspace{0.3cm}
+    \vspace{0.1cm}
     $$\text{softmax}(x)_i = \frac{e^{x_i}}{\sum_{j=1}^{N} e^{x_j}}$$
 
-    \vspace{0.3cm}
+    \vspace{0.1cm}
     \textbf{Numerical Stability:} Subtract max to prevent overflow:
     $$\text{softmax}(x)_i = \frac{e^{x_i - m}}{\sum_{j=1}^{N} e^{x_j - m}}, \quad m = \max_j x_j$$
 
-    \vspace{0.5cm}
+    \vspace{0.2cm}
     \begin{block}{Two-Pass Algorithm}
         \textbf{Pass 1 (REDUCE):} Find $m = \max(x)$, compute $s = \sum e^{x_j - m}$ \\
-        \textbf{Pass 2 (MAP):} For each $i$: $p_i = e^{x_i - m} / s$
+        \textbf{Pass 2 (MAP):} For each $i$: $p_i = e^{x_i - m} / s$\
     \end{block}
 \end{frame}
 
 % Slide 5b: Softmax Resource Analysis
-\begin{frame}{Softmax: Memory-Bound vs. Compute-Bound}
+\begin{frame}{Softmax Resource Analysis}
     \begin{table}
         \centering
         \small
@@ -245,6 +237,11 @@ __global__ void tiledMatMul(float* A, float* B, float* C) {
 
 % Slide 6: Online Softmax Algorithm
 \begin{frame}{Online Softmax: Single-Pass Solution}
+    \begin{block}{Challenge for Attention}
+        Row-wise softmax depends on the \textbf{entire row}. Cannot compute softmax per-tile until all tiles are seen.
+    \end{block}
+
+
     \textbf{Online softmax} maintains running statistics $(m, d)$ updated incrementally:
 
     \vspace{0.3cm}
@@ -269,8 +266,6 @@ __global__ void tiledMatMul(float* A, float* B, float* C) {
         d_{\text{new}} &= d_{\text{old}} \cdot e^{m_{\text{old}} - m_{\text{new}}} + \sum_{j \in \text{block}} e^{x_j - m_{\text{new}}}
     \end{align*}
 
-    \vspace{0.3cm}
-    {\footnotesize \textit{[INSERT IMAGE: Online softmax flow diagram showing incremental updates]}}
 \end{frame}
 
 % Slide 7: FlashAttention V1 Algorithm
@@ -296,7 +291,12 @@ __global__ void tiledMatMul(float* A, float* B, float* C) {
     \end{block}
 
     \vspace{0.3cm}
-    {\footnotesize \textit{[INSERT IMAGE: FlashAttention V1 algorithm flow diagram]}}
+
+\end{frame}
+\begin{frame} {FlashAttention V1: Diagram}
+        \begin{center}
+        \includegraphics[width=0.55\textwidth]{img/07-17-v1-forward-pass.jpg}
+    \end{center}
 \end{frame}
 
 % Slide 8: FlashAttention V1 vs V2 Comparison
@@ -325,11 +325,20 @@ for i in Q_blocks:                # Outer: Q
     \end{lstlisting}
 
     \vspace{0.3cm}
-    \begin{block}{V2 Advantages}
+
+\end{frame}
+
+\begin{frame}{FlashAttention V1 vs V2: Why V2 is Faster? (Continued)}
+        \begin{block}{V2 Advantages}
         \textbf{Deferred rescaling:} $O(N)$ writes vs $O(N^2)$ \\
         \textbf{Better locality:} Each SM owns Q-block, processes all K/V \\
         \textbf{No inter-warp sync:} Q-split instead of K-split
     \end{block}
+
+    \vspace{0.3cm}
+    \begin{center}
+        \includegraphics[width=0.7\textwidth]{img/07-18-io-complexity.jpg}
+    \end{center}
 \end{frame}
 
 % Slide 9: IO Complexity Comparison
@@ -360,6 +369,8 @@ for i in Q_blocks:                # Outer: Q
     \begin{block}{Key Takeaway}
         For typical settings ($d=64$--$128$, $M \gg d^2$), FlashAttention eliminates \textbf{almost all $N^2$-sized HBM traffic}
     \end{block}
+
+
 \end{frame}
 
 % Slide 10: Memory Savings Example
@@ -446,8 +457,7 @@ output = F.scaled_dot_product_attention(Q, K, V)
         \item Memory savings: \textbf{2--5×} lower peak HBM usage
     \end{itemize}
 
-    \vspace{0.3cm}
-    {\footnotesize \textit{[INSERT IMAGE: Benchmark speedup chart showing speedup vs sequence length]}}
+
 \end{frame}
 
 % Slide 13: Summary
@@ -491,21 +501,7 @@ output = F.scaled_dot_product_attention(Q, K, V)
         - Simulate FlashAttention V2 \\
         - Benchmark standard vs SDPA
     \end{block}
+
 \end{frame}
 
-% Final slide
-\begin{frame}{Questions?}
-    \vspace{1cm}
-    \begin{center}
-        \Large{\textbf{Thank You!}}
-    \end{center}
 
-    \vspace{1cm}
-    \begin{center}
-        \footnotesize
-        AUP Learning Cloud — AMD Research \\
-        \url{https://amdresearch.github.io/aup-learning-cloud/}
-    \end{center}
-\end{frame}
-
-\end{document}
