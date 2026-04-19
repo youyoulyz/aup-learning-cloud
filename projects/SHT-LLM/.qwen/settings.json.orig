@@ -3,6 +3,5 @@
     "allow": [
       "Bash(pdflatex *)"
     ]
-  },
-  "$version": 3
+  }
 }
