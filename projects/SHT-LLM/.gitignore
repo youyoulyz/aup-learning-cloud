@@ -1,0 +1,7 @@
+*
+!.gitignore
+!*.ipynb
+!data
+!.qwen
+!latex
+!sol
