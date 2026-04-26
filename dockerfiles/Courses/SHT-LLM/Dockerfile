@@ -27,7 +27,7 @@ FROM ${BASE_IMAGE}
 USER root
 
 # Install course-specific packages system-wide
-RUN pip3 install --no-cache-dir \
+RUN pip3 install --no-cache-dir -i https://mirrors.aliyun.com/pypi/simple/ \
     transformers \
     datasets>=2.14.0 \
     tokenizers>=0.15.0 \
@@ -47,16 +47,29 @@ RUN pip3 install --no-cache-dir \
     graphviz>=0.20.1 \
     # Image processing
     Pillow>=8.3.0 \
-    imageio>=2.9.0 \
+    imageio>=2.9.0
     # Additional dependencies for advanced features
+
+# 预先升级基础构建工具
+RUN pip3 install --no-cache-dir -i https://mirrors.aliyun.com/pypi/simple/ --upgrade setuptools
+
+RUN pip3 install --no-cache-dir  -i  https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple some-package  \
     requests>=2.28.0 \
-    typing-extensions>=4.4.0
+    typing-extensions>=4.4.0 \
+    # LLM15: Quantization and Evaluation
+    gptqmodel>=1.0.0 \
+    autoawq>=0.2.0 \
+    #optimum>=1.15.0 \
+    llmcompressor>=0.1.0 \
+    # Quantization utilities
+    bitsandbytes>=0.41.0 \
+    # GGUF support (llama.cpp Python bindings)
+    llama-cpp-python>=0.2.0 \
+    # Perplexity and evaluation metrics
+    rouge_score>=0.1.2 \
+    sacrebleu>=2.0.0
 
-USER root
-
-
-
-#FasionMNIST
+# FashionMNIST
 RUN mkdir -p /opt/workspace/LLM/data/FashionMNIST/raw && cd /opt/workspace/LLM/data/FashionMNIST/raw && \
     wget http://fashion-mnist.s3-website.eu-central-1.amazonaws.com/train-images-idx3-ubyte.gz && \
     wget http://fashion-mnist.s3-website.eu-central-1.amazonaws.com/train-labels-idx1-ubyte.gz && \
