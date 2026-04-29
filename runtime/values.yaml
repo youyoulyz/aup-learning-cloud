@@ -207,14 +207,12 @@ custom:
         memory_limit: "24Gi"
         amd.com/gpu: "1"
       Course-SHT-PROF:
-        cpu: "4"
-        memory: "16Gi"
-        memory_limit: "24Gi"
+        cpu: "0"
+        memory: "0Gi"
         amd.com/gpu: "1"
       Course-SHT-LLM:
-        cpu: "4"
-        memory: "16Gi"
-        memory_limit: "24Gi"
+        cpu: "0"
+        memory: "0Gi"
         amd.com/gpu: "1"
       # Custom-URL:
       #   cpu: "4"

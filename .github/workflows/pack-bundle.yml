@@ -37,7 +37,7 @@ on:
         options:
           - strix-halo   # gfx1151 — Ryzen AI Max+ 395 / Max 390
           - phx          # gfx110x — Ryzen AI 300 (Phoenix)
-          - strix        # gfx110x + HSA override — Ryzen AI 300 (Strix Point)
+          - strix        # gfx1150 — Ryzen AI 300 (Strix Point)
           - rdna4        # gfx120x — Radeon RX 9000 series
       image_tag:
         description: 'Image tag prefix (default: current branch/tag name)'

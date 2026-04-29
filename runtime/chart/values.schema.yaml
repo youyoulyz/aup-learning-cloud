@@ -1,3 +1,22 @@
+# Modifications Copyright (C) 2025 Advanced Micro Devices, Inc. All rights reserved.
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 # This schema (a jsonschema in YAML format) is used to generate
 # values.schema.json which is packaged with the Helm chart for client side
 # validation by helm of values before template rendering.
@@ -1275,9 +1294,6 @@ properties:
         patternProperties: *labels-and-annotations-patternProperties
         description: |
           K8s annotations for the hub pod.
-      authenticatePrometheus:
-        type: [boolean, "null"]
-        description: *jupyterhub-native-config-description
       concurrentSpawnLimit:
         type: [integer, "null"]
         description: *jupyterhub-native-config-description
@@ -2092,6 +2108,93 @@ properties:
           containerSecurityContext: *containerSecurityContext-spec
           image: *image-spec
           resources: *resources-spec
+
+  monitoring:
+    type: object
+    additionalProperties: false
+    properties:
+      enabled:
+        type: boolean
+        default: false
+      namespace:
+        type: string
+        default: monitoring
+      releaseLabel:
+        type: string
+        default: monitoring
+      hubMetrics:
+        type: object
+        additionalProperties: false
+        properties:
+          enabled:
+            type: boolean
+            default: false
+          allowUnauthenticatedScrape:
+            type: boolean
+            default: false
+          serviceAnnotations:
+            type: object
+            additionalProperties: false
+            properties:
+              enabled:
+                type: boolean
+                default: false
+      serviceMonitor:
+        type: object
+        additionalProperties: false
+        properties:
+          enabled:
+            type: boolean
+            default: false
+          interval:
+            type: string
+            default: 15s
+          authorization:
+            type: object
+            additionalProperties: false
+            properties:
+              enabled:
+                type: boolean
+                default: true
+              type:
+                type: string
+                default: Bearer
+              hubServiceName:
+                type: string
+                minLength: 1
+                default: prometheus-metrics
+              secret:
+                type: object
+                additionalProperties: false
+                properties:
+                  create:
+                    type: boolean
+                    default: true
+                  name:
+                    type: string
+                    default: ""
+                  key:
+                    type: string
+                    minLength: 1
+                    default: token
+      grafana:
+        type: object
+        additionalProperties: false
+        properties:
+          dashboard:
+            type: object
+            additionalProperties: false
+            properties:
+              enabled:
+                type: boolean
+                default: false
+      prometheusRule:
+        type: object
+        additionalProperties: false
+        properties:
+          enabled:
+            type: boolean
+            default: false
 
   singleuser:
     type: object
@@ -3440,6 +3543,37 @@ properties:
               Used as fallback when user provides no PAT and no OAuth token is available.
               Priority: user PAT > OAuth token > defaultAccessToken.
               Helm auto-creates a K8s Secret (jupyterhub-git-default-token) from this value.
+
+      hub:
+        type: object
+        additionalProperties: false
+        description: |
+          Hub-level network settings.
+        properties:
+          allowedOrigins:
+            type: array
+            items:
+              type: string
+            description: |
+              Sets Access-Control-Allow-Origin on Hub HTTP responses.
+              Use when the Hub API is accessed cross-origin.
+              Use ["*"] to allow all, or list specific domains.
+
+      notebook:
+        type: object
+        additionalProperties: false
+        description: |
+          Notebook server network settings.
+        properties:
+          allowedOrigins:
+            type: array
+            items:
+              type: string
+            description: |
+              Injected into each notebook server's startup args via
+              --ServerApp.allow_origin_pat. Needed when kernel WebSocket
+              connections go through a reverse proxy or non-standard domain.
+              Use ["*"] to allow all, or list specific domains.
 
       apiService:
         type: object

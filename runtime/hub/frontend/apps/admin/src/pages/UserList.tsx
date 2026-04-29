@@ -18,8 +18,7 @@
 // SOFTWARE.
 
 import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Table, Button, Form, InputGroup, Badge, Spinner, Alert, ButtonGroup, Modal } from 'react-bootstrap';
+import { Table, Button, Form, InputGroup, Badge, Spinner, Alert, ButtonGroup, Modal, Dropdown } from 'react-bootstrap';
 import type { User, UserQuota, Server } from '@auplc/shared';
 import * as api from '@auplc/shared';
 import { isGitHubUser, isNativeUser as isNativeUsername } from '@auplc/shared';
@@ -28,6 +27,8 @@ import { SetPasswordModal } from '../components/SetPasswordModal';
 import { BatchPasswordModal } from '../components/BatchPasswordModal';
 import { EditUserModal } from '../components/EditUserModal';
 import { ConfirmModal } from '../components/ConfirmModal';
+import { UserDetailModal } from '../components/UserDetailModal';
+import { QuotaRefreshModal } from '../components/QuotaRefreshModal';
 
 // Map frontend sort columns to API sort parameters
 // JupyterHub API only supports: id, name, last_activity
@@ -100,6 +101,7 @@ interface UserRowProps {
   onEditUser: (user: User) => void;
   onPasswordReset: (user: User) => void;
   onDeleteUser: (user: User) => void;
+  onViewUsage: (username: string) => void;
 }
 
 const UserRow = memo(function UserRow({
@@ -124,6 +126,7 @@ const UserRow = memo(function UserRow({
   onEditUser,
   onPasswordReset,
   onDeleteUser,
+  onViewUsage,
 }: UserRowProps) {
   const isExpanded = expandedUsers.has(user.name);
   const isSelected = selectedUsers.has(user.name);
@@ -211,13 +214,13 @@ const UserRow = memo(function UserRow({
         <td>{getServerStatusBadge(user)}</td>
         <td>{formatDate(user.last_activity)}</td>
         <td>
-          <ButtonGroup size="sm">
+          <div className="d-flex align-items-center gap-1">
             {user.server ? (
               <Button
                 variant="dark"
+                size="sm"
                 onClick={() => onStopServer(user)}
                 disabled={actionLoading === `stop-${user.name}`}
-                title="Stop Server"
               >
                 {actionLoading === `stop-${user.name}` ? (
                   <Spinner animation="border" size="sm" />
@@ -228,9 +231,9 @@ const UserRow = memo(function UserRow({
             ) : (
               <Button
                 variant="dark"
+                size="sm"
                 onClick={() => onStartServer(user)}
                 disabled={actionLoading === `start-${user.name}` || !!user.pending}
-                title="Start Server"
               >
                 {actionLoading === `start-${user.name}` ? (
                   <Spinner animation="border" size="sm" />
@@ -239,48 +242,40 @@ const UserRow = memo(function UserRow({
                 )}
               </Button>
             )}
-
-            <Button
-              variant="light"
-              as="a"
-              href={`${baseUrl}spawn/${user.name}`}
-              title="Spawn Page"
-            >
-              Spawn Page
-            </Button>
-
-            <Button
-              variant="light"
-              onClick={() => onEditUser(user)}
-              title="Edit User"
-            >
-              Edit User
-            </Button>
-
-            {isNativeUser(user) && (
-              <Button
-                variant="light"
-                onClick={() => onPasswordReset(user)}
-                title="Reset Password"
-              >
-                <i className="bi bi-key"></i> Reset PW
-              </Button>
-            )}
-            {!isProtected && (
-              <Button
-                variant="outline-danger"
-                onClick={() => onDeleteUser(user)}
-                title="Delete User"
-                disabled={actionLoading === `delete-${user.name}`}
-              >
-                {actionLoading === `delete-${user.name}` ? (
-                  <Spinner animation="border" size="sm" />
-                ) : (
-                  'Delete'
+            <Dropdown>
+              <Dropdown.Toggle variant="light" size="sm" id={`actions-${user.name}`} bsPrefix="btn">
+                <i className="bi bi-three-dots-vertical" />
+              </Dropdown.Toggle>
+              <Dropdown.Menu align="end" popperConfig={{ strategy: 'fixed' }} renderOnMount>
+                <Dropdown.Item href={`${baseUrl}spawn/${user.name}`}>
+                  <i className="bi bi-rocket me-2" />Spawn Page
+                </Dropdown.Item>
+                <Dropdown.Item onClick={() => onEditUser(user)}>
+                  <i className="bi bi-pencil me-2" />Edit User
+                </Dropdown.Item>
+                <Dropdown.Item onClick={() => onViewUsage(user.name)}>
+                  <i className="bi bi-clock-history me-2" />Usage
+                </Dropdown.Item>
+                {isNativeUser(user) && (
+                  <Dropdown.Item onClick={() => onPasswordReset(user)}>
+                    <i className="bi bi-key me-2" />Reset Password
+                  </Dropdown.Item>
                 )}
-              </Button>
-            )}
-          </ButtonGroup>
+                {!isProtected && (
+                  <>
+                    <Dropdown.Divider />
+                    <Dropdown.Item
+                      className="text-danger"
+                      onClick={() => onDeleteUser(user)}
+                      disabled={actionLoading === `delete-${user.name}`}
+                    >
+                      <i className="bi bi-trash me-2" />Delete
+                    </Dropdown.Item>
+                  </>
+                )}
+              </Dropdown.Menu>
+            </Dropdown>
+          </div>
         </td>
       </tr>
       {/* Expanded User Details */}
@@ -362,7 +357,6 @@ const ServerDetails = memo(function ServerDetails({ serverName, server, userName
 });
 
 export function UserList() {
-  const navigate = useNavigate();
   const [users, setUsers] = useState<User[]>([]);
   const [totalUsers, setTotalUsers] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -393,6 +387,8 @@ export function UserList() {
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [showBatchDeleteModal, setShowBatchDeleteModal] = useState(false);
   const [showBatchPasswordModal, setShowBatchPasswordModal] = useState(false);
+  const [showQuotaRefreshModal, setShowQuotaRefreshModal] = useState(false);
+  const [usageUsername, setUsageUsername] = useState<string | null>(null);
 
   const jhdata = window.jhdata ?? {};
   const baseUrl = jhdata.base_url ?? '/hub/';
@@ -787,14 +783,23 @@ export function UserList() {
             {actionLoading === 'stop-all' ? <Spinner animation="border" size="sm" /> : 'Stop All'}
           </Button>
           {quotaEnabled && (
-            <Button
-              variant="secondary"
-              onClick={() => setShowBatchQuotaModal(true)}
-              disabled={selectedUsers.size === 0}
-              title={selectedUsers.size === 0 ? 'Select users first' : `Set quota for ${selectedUsers.size} users`}
-            >
-              Set Quota ({selectedUsers.size})
-            </Button>
+            <>
+              <Button
+                variant="secondary"
+                onClick={() => setShowBatchQuotaModal(true)}
+                disabled={selectedUsers.size === 0}
+                title={selectedUsers.size === 0 ? 'Select users first' : `Set quota for ${selectedUsers.size} users`}
+              >
+                Set Quota ({selectedUsers.size})
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => setShowQuotaRefreshModal(true)}
+                title="Refresh quota for all users"
+              >
+                <i className="bi bi-arrow-clockwise me-1" />Refresh Quota
+              </Button>
+            </>
           )}
           <Button
             variant="secondary"
@@ -822,9 +827,27 @@ export function UserList() {
         <div className="d-flex gap-2">
           <Button
             variant="outline-secondary"
-            onClick={() => navigate('/groups')}
+            onClick={() => {
+              const headers = ['Username', 'Admin', 'Server', 'Last Activity'];
+              if (quotaEnabled) headers.splice(2, 0, 'Quota');
+              const rows = users.map(u => {
+                const row = [u.name, u.admin ? 'Yes' : 'No', u.server ? 'Running' : 'Stopped', u.last_activity ?? ''];
+                if (quotaEnabled) {
+                  const q = quotaMap.get(u.name);
+                  row.splice(2, 0, q?.unlimited ? 'Unlimited' : String(q?.balance ?? 0));
+                }
+                return row;
+              });
+              const csv = [headers.join(','), ...rows.map(r => r.map(c => `"${c}"`).join(','))].join('\n');
+              const blob = new Blob([csv], { type: 'text/csv' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a'); a.href = url; a.download = 'users.csv'; a.click();
+              URL.revokeObjectURL(url);
+            }}
+            disabled={users.length === 0}
+            title="Export current page as CSV"
           >
-            Manage Groups
+            <i className="bi bi-download me-1" /> Export
           </Button>
           <Button
             variant="outline-secondary"
@@ -928,6 +951,7 @@ export function UserList() {
               onEditUser={openEditModal}
               onPasswordReset={openPasswordModal}
               onDeleteUser={openDeleteModal}
+              onViewUsage={setUsageUsername}
             />
           ))}
         </tbody>
@@ -1085,6 +1109,19 @@ export function UserList() {
         onConfirm={handleBatchDelete}
         onCancel={() => setShowBatchDeleteModal(false)}
         loading={actionLoading === 'batch-delete'}
+      />
+
+      {/* User Usage Detail Modal */}
+      <UserDetailModal
+        username={usageUsername}
+        onClose={() => setUsageUsername(null)}
+      />
+
+      {/* Quota Refresh Modal */}
+      <QuotaRefreshModal
+        show={showQuotaRefreshModal}
+        onHide={() => setShowQuotaRefreshModal(false)}
+        onSuccess={loadQuota}
       />
     </div>
   );
