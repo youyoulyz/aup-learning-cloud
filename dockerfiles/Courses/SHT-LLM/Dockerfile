@@ -39,6 +39,7 @@ RUN pip3 install --no-cache-dir -i https://mirrors.aliyun.com/pypi/simple/ \
     sentencepiece>=0.1.99 \
     protobuf>=3.20.0 \
     # Visualization
+    matplotlib>=3.7.0 \
     seaborn>=0.11.0 \
     plotly>=5.0.0 \
     kaleido>=0.2.1 \
