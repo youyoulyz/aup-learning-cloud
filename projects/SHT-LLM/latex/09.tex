@@ -386,52 +386,7 @@ peft_model = get_peft_model(base_model, config)
 	\end{itemize}
 \end{frame}
 
-% Slide 12: QLoRA
-\begin{frame}{QLoRA: 4-bit Quantized LoRA}
-	\textbf{QLoRA} (Dettmers et al., 2023) combines 4-bit quantization with LoRA.
 
-	\vspace{0.3cm}
-	\textbf{How it works:}
-	\begin{enumerate}
-		\item \textbf{Quantize} base model to 4-bit NF4 (NormalFloat4)
-		\item \textbf{Freeze} quantized weights --- no gradients through them
-		\item \textbf{Add LoRA} adapters in FP16/BF16
-		\item \textbf{Train} only LoRA parameters
-	\end{enumerate}
-
-	\vspace{0.3cm}
-	\begin{block}{Memory Savings (Qwen2.5-0.5B)}
-		\begin{itemize}
-			\item FP16 base: $\sim$1.0 GB
-			\item 4-bit NF4 base: $\sim$0.3 GB ($\mathbf{3.3\times}$ smaller)
-			\item With double quantization: even more savings
-		\end{itemize}
-	\end{block}
-
-	\vspace{0.2cm}
-	\textbf{NF4 quantization:} Assumes weights follow a normal distribution; quantiles are optimally spaced for Gaussian data.
-\end{frame}
-
-% Slide 13: QLoRA Implementation
-\begin{frame}[fragile]{QLoRA Implementation}
-	\begin{lstlisting}[language=Python]
-from transformers import BitsAndBytesConfig
-bnb_config = BitsAndBytesConfig(
-    load_in_4bit=True,
-    bnb_4bit_quant_type='nf4',
-    bnb_4bit_compute_dtype=torch.float16,
-    bnb_4bit_use_double_quant=True,
-)
-base_model = AutoModelForCausalLM.from_pretrained(
-    model_name, quantization_config=bnb_config, device_map='auto'
-)
-lora_config = LoraConfig(r=16, lora_alpha=32, ...)
-qlora_model = get_peft_model(base_model, lora_config)
-    \end{lstlisting}
-
-	\vspace{0.2cm}
-	\textbf{Key insight:} LoRA config is identical regardless of quantization --- QLoRA is transparent to the user.
-\end{frame}
 
 % Slide 14: LoRA Variants
 \begin{frame}{LoRA Variants: DoRA and rsLoRA}
