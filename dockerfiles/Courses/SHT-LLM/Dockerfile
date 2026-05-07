@@ -68,7 +68,8 @@ RUN pip3 install --no-cache-dir  -i  https://mirrors.tuna.tsinghua.edu.cn/pypi/w
     llama-cpp-python>=0.2.0 \
     # Perplexity and evaluation metrics
     rouge_score>=0.1.2 \
-    sacrebleu>=2.0.0
+    sacrebleu>=2.0.0 \
+    optimum>=1.24.0
 
 # FashionMNIST
 RUN mkdir -p /opt/workspace/LLM/data/FashionMNIST/raw && cd /opt/workspace/LLM/data/FashionMNIST/raw && \
