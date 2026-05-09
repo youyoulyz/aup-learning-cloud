@@ -48,7 +48,7 @@
 		\item \textbf{LoRA Implementation}: Building LoRA layers from scratch
 		\item \textbf{PEFT Library}: Applying LoRA to real LLMs (Qwen2.5-0.5B)
 		\item \textbf{Supervised Fine-Tuning}: Training with LoRA on instruction data
-		\item \textbf{QLoRA}: 4-bit NF4 quantization + LoRA for consumer GPUs
+		%\item \textbf{QLoRA}: 4-bit NF4 quantization + LoRA for consumer GPUs
 		\item \textbf{Variants \& Production}: DoRA, rsLoRA, adapter save/load/merge
 	\end{enumerate}
 
@@ -168,6 +168,35 @@
 
 	\vspace{0.2cm}
 	\textbf{Memory:} No need to materialize full $\Delta W$ matrix.
+\end{frame}
+% Slide 14b: A and B Matrix Roles
+\begin{frame}{A and B Matrix: Asymmetric Roles}
+	\begin{center}
+		\includegraphics[width=0.65\textwidth]{img/09-ab-matrix.jpg}
+	\end{center}
+
+	\vspace{0.2cm}
+	\begin{columns}
+		\begin{column}{0.45\textwidth}
+			\textbf{A matrix:} Feature extractor
+			\begin{itemize}
+				\item Captures cross-domain commonality
+				\item Can be shared across tasks
+				\item Less critical to update
+			\end{itemize}
+		\end{column}
+		\begin{column}{0.5\textwidth}
+			\textbf{B matrix:} Task adapter
+			\begin{itemize}
+				\item Captures task-specific differences
+				\item More important than A
+				\item Updating B alone $\approx$ full LoRA quality
+			\end{itemize}
+		\end{column}
+	\end{columns}
+
+	\vspace{0.1cm}
+	{\footnotesize Image credit: ``Exploring Transformer (22)---LoRA'' \cite{rossi2025lora}}
 \end{frame}
 
 % Slide 6: Implementation - LoRA Layer
@@ -412,35 +441,7 @@ peft_model = get_peft_model(base_model, config)
 	\end{block}
 \end{frame}
 
-% Slide 14b: A and B Matrix Roles
-\begin{frame}{A and B Matrix: Asymmetric Roles}
-	\begin{center}
-		\includegraphics[width=0.65\textwidth]{img/09-ab-matrix.jpg}
-	\end{center}
 
-	\vspace{0.2cm}
-	\begin{columns}
-		\begin{column}{0.45\textwidth}
-			\textbf{A matrix:} Feature extractor
-			\begin{itemize}
-				\item Captures cross-domain commonality
-				\item Can be shared across tasks
-				\item Less critical to update
-			\end{itemize}
-		\end{column}
-		\begin{column}{0.5\textwidth}
-			\textbf{B matrix:} Task adapter
-			\begin{itemize}
-				\item Captures task-specific differences
-				\item More important than A
-				\item Updating B alone $\approx$ full LoRA quality
-			\end{itemize}
-		\end{column}
-	\end{columns}
-
-	\vspace{0.1cm}
-	{\footnotesize Image credit: ``Exploring Transformer (22)---LoRA'' \cite{rossi2025lora}}
-\end{frame}
 
 % Slide 15: Variant Comparison
 \begin{frame}{Variant Comparison}
