@@ -131,7 +131,7 @@
 			Prefill        & 8192             & 13.5T          & 2.8GB          & 4779 & \quad\textcolor{green!60!black}{\textbf{compute}} \\
 			\midrule
 			Decode         & 128              & 719M           & 0.97GB         & 0.74 & \quad\textcolor{red}{\textbf{memory}}             \\
-			Decode         & 8192             & 1.6B           & 2.8GB          & 0.58 & \quad\textcolor{red}{\textbf{memory}}             \\
+			Decode         & 8192             & 1.6G           & 2.8GB          & 0.58 & \quad\textcolor{red}{\textbf{memory}}             \\
 			\bottomrule
 		\end{tabular}
 	\end{center}
@@ -147,7 +147,7 @@
 \section{Decoding Strategies}
 % ════════════════════════════════════════════════════════════════════════════
 
-\begin{frame}{From Logits to Tokens}
+\begin{frame}{From Logits to Tokens (https://poloclub.github.io/transformer-explainer/)}
 
 	The model outputs logits $z \in \mathbb{R}^{|V|}$. How do we pick the next token?
 
@@ -174,52 +174,6 @@
 	\end{columns}
 
 	\textbf{Typical pipeline}: Temperature $\rightarrow$ Top-K $\rightarrow$ Top-P $\rightarrow$ Sample
-
-\end{frame}
-
-% ────────────────────────────────────────────────────────────────────────────
-\begin{frame}{Decoding Strategy Comparison}
-
-	\textbf{Demo}: 10-token vocabulary, logits = [2.0, 1.5, 1.0, 0.5, 0.0, -0.5, -1.0, -1.5, -2.0, -3.0]
-
-	\begin{center}
-		\small
-		\begin{tabular}{@{}ll@{}}
-			\toprule
-			\textbf{Strategy}   & \textbf{Unique tokens sampled (20 trials)} \\
-			\midrule
-			T=0.3 (sharp)       & [0, 1, 2]                                  \\
-			T=1.0 (default)     & [0, 1, 2, 3, 4, 6, 7]                      \\
-			T=2.0 (flat)        & [0, 1, 2, 3, 4, 5, 6, 7, 9]                \\
-			Top-K=3             & [0, 1, 2]                                  \\
-			Top-P=0.8           & [0, 1, 2, 3]                               \\
-			T=0.7 + K=5 + P=0.9 & [0, 1, 2]                                  \\
-			\bottomrule
-		\end{tabular}
-	\end{center}
-
-	\begin{itemize}
-		\item Greedy always picks token 0 (highest logit)
-		\item Lower temperature $\rightarrow$ less diversity
-		\item Top-K/P restrict the candidate set
-	\end{itemize}
-
-\end{frame}
-
-% ────────────────────────────────────────────────────────────────────────────
-\begin{frame}{Temperature Effect Visualization}
-
-	\begin{center}
-		\includegraphics[width=0.4\textwidth]{img/temperature-softmax-dist.png}
-	\end{center}
-
-	\begin{block}{Temperature Control}
-		\begin{itemize}
-			\item \textbf{Low $T$}: High confidence, low diversity (good for factual QA)
-			\item \textbf{Medium $T$}: Balanced creativity and coherence
-			\item \textbf{High $T$}: High diversity, lower quality (good for brainstorming)
-		\end{itemize}
-	\end{block}
 
 \end{frame}
 
@@ -256,6 +210,25 @@
 	\end{columns}
 
 \end{frame}
+
+
+% ────────────────────────────────────────────────────────────────────────────
+\begin{frame}{Temperature Effect Visualization}
+
+	\begin{center}
+		\includegraphics[width=0.4\textwidth]{img/temperature-softmax-dist.png}
+	\end{center}
+
+	\begin{block}{Temperature Control}
+		\begin{itemize}
+			\item \textbf{Low $T$}: High confidence, low diversity (good for factual QA)
+			\item \textbf{Medium $T$}: Balanced creativity and coherence
+			\item \textbf{High $T$}: High diversity, lower quality (good for brainstorming)
+		\end{itemize}
+	\end{block}
+
+\end{frame}
+
 
 % ────────────────────────────────────────────────────────────────────────────
 \begin{frame}{Repetition Penalty Example}
@@ -325,61 +298,9 @@
 
 \end{frame}
 
-% ────────────────────────────────────────────────────────────────────────────
-\begin{frame}{KV-Cache Memory Allocation}
 
-	\begin{columns}[T]
-		\begin{column}{0.48\textwidth}
-			\begin{block}{Contiguous Allocation}
-				\begin{itemize}
-					\item Pre-allocate fixed-size array
-					\item Simple indexing: $\text{cache}[layer][position]$
-					\item \textbf{Problem}: Wasted space if sequences vary in length
-				\end{itemize}
-			\end{block}
-		\end{column}
-		\begin{column}{0.48\textwidth}
-			\begin{block}{Paged Attention (vLLM)}
-				\begin{itemize}
-					\item Divide KV-Cache into fixed-size blocks (e.g., 16 tokens)
-					\item Allocate blocks on-demand
-					\item Non-contiguous memory $\rightarrow$ no internal fragmentation
-				\end{itemize}
-			\end{block}
-		\end{column}
-	\end{columns}
 
-	\begin{block}{Benefit}
-		PagedAttention eliminates memory waste from padding $\rightarrow$ higher batch sizes $\rightarrow$ better GPU utilization.
-	\end{block}
 
-\end{frame}
-
-% ────────────────────────────────────────────────────────────────────────────
-\begin{frame}{KV-Cache Quantization}
-
-	\textbf{Observation}: KV-Cache values don't need full FP16 precision.
-
-	\begin{center}
-		\small
-		\begin{tabular}{@{}lccc@{}}
-			\toprule
-			\textbf{Format} & \textbf{Bytes/value} & \textbf{Memory} & \textbf{Quality} \\
-			\midrule
-			FP16 (baseline)  & 2  & 100\%  & Full precision    \\
-			FP8              & 1  & 50\%   & Minimal loss      \\
-			INT8             & 1  & 50\%   & Small degradation \\
-			INT4             & 0.5 & 25\%  & Noticeable loss   \\
-			\bottomrule
-		\end{tabular}
-	\end{center}
-
-	\begin{alertblock}{FP8 KV-Cache}
-		Modern GPUs (H100, MI300X) support FP8 natively.\\
-		50\% memory reduction with negligible quality impact.
-	\end{alertblock}
-
-\end{frame}
 
 % ────────────────────────────────────────────────────────────────────────────
 \begin{frame}{KV-Cache Implementation}
@@ -613,6 +534,115 @@
 
 \end{frame}
 
+% ────────────────────────────────────────────────────────────────────────────
+\begin{frame}{Real-World Serving Systems}
+
+	\begin{center}
+		\small
+		\begin{tabular}{@{}lp{5cm}l@{}}
+			\toprule
+			\textbf{System} & \textbf{Key Features} & \textbf{KV Optimization} \\
+			\midrule
+			vLLM            & PagedAttention, continuous batching & Block-based KV mgmt \\
+			TensorRT-LLM    & Graph optimization, quantization    & FP8 KV, page attention \\
+			SGLang          & RadixAttention, structured output   & KV cache reuse \\
+			TGI             & Multi-device, streaming             & Efficient batching \\
+			\bottomrule
+		\end{tabular}
+	\end{center}
+
+	\begin{block}{vLLM (Most Popular)}
+		\begin{itemize}
+			\item PagedAttention eliminates memory fragmentation
+			\item Continuous batching: process requests as they arrive
+			\item 2-24$\times$ throughput improvement over naive serving
+		\end{itemize}
+	\end{block}
+
+\end{frame}
+
+% ────────────────────────────────────────────────────────────────────────────
+\begin{frame}{Performance Benchmarking}
+
+	\textbf{Key Metrics} for LLM inference:
+
+	\begin{columns}[T]
+		\begin{column}{0.48\textwidth}
+			\begin{block}{Latency Metrics}
+				\begin{itemize}
+					\item \textbf{TTFT} (Time to First Token): How long until response starts
+					\item \textbf{TPOT} (Time Per Output Token): Average time per token
+					\item \textbf{Latency} = TTFT + (tokens $\times$ TPOT)
+				\end{itemize}
+			\end{block}
+		\end{column}
+		\begin{column}{0.48\textwidth}
+			\begin{block}{Throughput Metrics}
+				\begin{itemize}
+					\item \textbf{Tokens/sec}: Total tokens generated per second
+					\item \textbf{Requests/sec}: Number of completed requests
+					\item \textbf{Concurrency}: How many requests handled simultaneously
+				\end{itemize}
+			\end{block}
+		\end{column}
+	\end{columns}
+
+	\begin{alertblock}{Trade-off}
+		Higher batch size $\rightarrow$ better throughput, but higher latency per request.\\
+		Optimal batch size depends on SLA requirements.
+	\end{alertblock}
+
+\end{frame}
+
+
+
+% ────────────────────────────────────────────────────────────────────────────
+\begin{frame}{Summary}
+
+	\begin{enumerate}
+		\item \textbf{Two-stage pipeline}: Prefill (compute-bound) vs Decode (memory-bound)
+		\item \textbf{Arithmetic intensity}: Decode loads entire model for 1 token $\rightarrow$ very inefficient
+		\item \textbf{Decoding strategies}: Temperature, Top-K, Top-P control diversity vs determinism
+		\item \textbf{KV-Cache}: Essential optimization --- cache past K/V to avoid $O(s^2)$ recomputation
+		\item \textbf{GQA}: Halves KV-Cache size with minimal quality loss
+		\item \textbf{Long-context bottleneck}: KV-Cache dominates memory at 32K+ tokens
+		\item \textbf{MTP}: Predict multiple tokens per pass --- no separate draft model needed
+		\item \textbf{Advanced techniques}: PagedAttention, Flash Attention, quantization enable efficient serving
+	\end{enumerate}
+
+	\begin{block}{Experiment Further}
+		\begin{itemize}
+			\item Train MTP heads and measure real speedup
+			\item Try FP8 KV-Cache quantization
+			\item Compare streaming latency (TTFT vs TPS)
+			\item Benchmark vLLM vs naive serving
+		\end{itemize}
+	\end{block}
+
+\end{frame}
+
+% ────────────────────────────────────────────────────────────────────────────
+\begin{frame}{Further Reading}
+
+	\begin{itemize}
+		\item \textbf{FlashAttention}: Fast and Memory-Efficient Exact Attention (Dao et al., 2022)
+		\item \textbf{vLLM}: Easy LLM Inference Serving (Kwon et al., 2023)
+		\item \textbf{DeepSeek-V3}: Multi-Token Prediction (DeepSeek, 2024)
+		\item \textbf{GQA}: Training Generalized Multi-Query Models (Ainslie et al., 2023)
+		\item \textbf{PagedAttention}: vLLM's memory management technique
+	\end{itemize}
+
+	\begin{block}{Resources}
+		\begin{itemize}
+			\item GitHub: github.com/vllm-project/vllm
+			\item HuggingFace: huggingface.co/docs/transformers
+			\item AMD ROCm: rocm.software
+		\end{itemize}
+	\end{block}
+
+\end{frame}
+
+
 % ════════════════════════════════════════════════════════════════════════════
 \section{Multi-Token Prediction (MTP)}
 % ════════════════════════════════════════════════════════════════════════════
@@ -750,111 +780,6 @@
 \end{frame}
 
 
-% ────────────────────────────────────────────────────────────────────────────
-\begin{frame}{Real-World Serving Systems}
-
-	\begin{center}
-		\small
-		\begin{tabular}{@{}lp{5cm}l@{}}
-			\toprule
-			\textbf{System} & \textbf{Key Features} & \textbf{KV Optimization} \\
-			\midrule
-			vLLM            & PagedAttention, continuous batching & Block-based KV mgmt \\
-			TensorRT-LLM    & Graph optimization, quantization    & FP8 KV, page attention \\
-			SGLang          & RadixAttention, structured output   & KV cache reuse \\
-			TGI             & Multi-device, streaming             & Efficient batching \\
-			\bottomrule
-		\end{tabular}
-	\end{center}
-
-	\begin{block}{vLLM (Most Popular)}
-		\begin{itemize}
-			\item PagedAttention eliminates memory fragmentation
-			\item Continuous batching: process requests as they arrive
-			\item 2-24$\times$ throughput improvement over naive serving
-		\end{itemize}
-	\end{block}
-
-\end{frame}
-
-% ────────────────────────────────────────────────────────────────────────────
-\begin{frame}{Performance Benchmarking}
-
-	\textbf{Key Metrics} for LLM inference:
-
-	\begin{columns}[T]
-		\begin{column}{0.48\textwidth}
-			\begin{block}{Latency Metrics}
-				\begin{itemize}
-					\item \textbf{TTFT} (Time to First Token): How long until response starts
-					\item \textbf{TPOT} (Time Per Output Token): Average time per token
-					\item \textbf{Latency} = TTFT + (tokens $\times$ TPOT)
-				\end{itemize}
-			\end{block}
-		\end{column}
-		\begin{column}{0.48\textwidth}
-			\begin{block}{Throughput Metrics}
-				\begin{itemize}
-					\item \textbf{Tokens/sec}: Total tokens generated per second
-					\item \textbf{Requests/sec}: Number of completed requests
-					\item \textbf{Concurrency}: How many requests handled simultaneously
-				\end{itemize}
-			\end{block}
-		\end{column}
-	\end{columns}
-
-	\begin{alertblock}{Trade-off}
-		Higher batch size $\rightarrow$ better throughput, but higher latency per request.\\
-		Optimal batch size depends on SLA requirements.
-	\end{alertblock}
-
-\end{frame}
-
-% ────────────────────────────────────────────────────────────────────────────
-\begin{frame}{Summary}
-
-	\begin{enumerate}
-		\item \textbf{Two-stage pipeline}: Prefill (compute-bound) vs Decode (memory-bound)
-		\item \textbf{Arithmetic intensity}: Decode loads entire model for 1 token $\rightarrow$ very inefficient
-		\item \textbf{Decoding strategies}: Temperature, Top-K, Top-P control diversity vs determinism
-		\item \textbf{KV-Cache}: Essential optimization --- cache past K/V to avoid $O(s^2)$ recomputation
-		\item \textbf{GQA}: Halves KV-Cache size with minimal quality loss
-		\item \textbf{Long-context bottleneck}: KV-Cache dominates memory at 32K+ tokens
-		\item \textbf{MTP}: Predict multiple tokens per pass --- no separate draft model needed
-		\item \textbf{Advanced techniques}: PagedAttention, Flash Attention, quantization enable efficient serving
-	\end{enumerate}
-
-	\begin{block}{Experiment Further}
-		\begin{itemize}
-			\item Train MTP heads and measure real speedup
-			\item Try FP8 KV-Cache quantization
-			\item Compare streaming latency (TTFT vs TPS)
-			\item Benchmark vLLM vs naive serving
-		\end{itemize}
-	\end{block}
-
-\end{frame}
-
-% ────────────────────────────────────────────────────────────────────────────
-\begin{frame}{Further Reading}
-
-	\begin{itemize}
-		\item \textbf{FlashAttention}: Fast and Memory-Efficient Exact Attention (Dao et al., 2022)
-		\item \textbf{vLLM}: Easy LLM Inference Serving (Kwon et al., 2023)
-		\item \textbf{DeepSeek-V3}: Multi-Token Prediction (DeepSeek, 2024)
-		\item \textbf{GQA}: Training Generalized Multi-Query Models (Ainslie et al., 2023)
-		\item \textbf{PagedAttention}: vLLM's memory management technique
-	\end{itemize}
-
-	\begin{block}{Resources}
-		\begin{itemize}
-			\item GitHub: github.com/vllm-project/vllm
-			\item HuggingFace: huggingface.co/docs/transformers
-			\item AMD ROCm: rocm.software
-		\end{itemize}
-	\end{block}
-
-\end{frame}
 
 
 
